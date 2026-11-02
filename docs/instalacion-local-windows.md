@@ -194,13 +194,14 @@ ngrok publica tu Moodle local con una dirección `https://….ngrok-free.dev`. E
    $CFG->sslproxy = true;
    ```
 
-4. En `fastapi-service\.env` agrega el dominio, sin `https://`, y reinicia FastAPI:
+4. En `fastapi-service\.env` agrega la dirección pública y reinicia FastAPI:
 
    ```ini
-   ALLOWED_FILE_HOSTS=TU_DOMINIO.ngrok-free.dev
+   MOODLE_URL=http://localhost
+   MOODLE_PUBLIC_URL=https://TU_DOMINIO.ngrok-free.dev
    ```
 
-   Los enlaces de los archivos que el plugin envía a FastAPI usan la dirección del sitio. Si el dominio no está en esta lista, el servicio no envía el token y la evaluación falla con «no está en ALLOWED_FILE_HOSTS».
+   Los enlaces de los archivos que el plugin envía a FastAPI usan la dirección de ngrok. Con `MOODLE_PUBLIC_URL`, FastAPI los cambia por `http://localhost` y descarga el PDF dentro del mismo equipo, sin dar la vuelta por internet ni gastar transferencia de ngrok.
 
 5. La URL de FastAPI en el plugin sigue siendo `http://127.0.0.1:8000`, porque esa llamada no pasa por ngrok.
 
@@ -215,7 +216,9 @@ Para volver al modo local: cierra ngrok, vuelve a poner `$CFG->wwwroot = 'http:/
 | «Esta URL está bloqueada» al dar clic | Seguridad HTTP | Paso 5 |
 | «No se pudo conectar con FastAPI» | FastAPI apagado o URL incorrecta en el plugin | `run.bat`; revisa la URL del paso 7 |
 | «Falta la variable MOODLE_TOKEN» al arrancar FastAPI | `.env` incompleto | Paso 8 |
-| «no está en ALLOWED_FILE_HOSTS» | La dirección del sitio no coincide con `MOODLE_URL` | Ajusta `MOODLE_URL` o `ALLOWED_FILE_HOSTS` (paso 11) |
+| «no está en ALLOWED_FILE_HOSTS» | La dirección del sitio no coincide con `MOODLE_URL` | Con ngrok, define `MOODLE_PUBLIC_URL` (paso 11) |
+| «Moodle redirigió la descarga» | `MOODLE_PUBLIC_URL` no coincide con `$CFG->wwwroot` | Usa exactamente la misma dirección |
+| «Moodle no entregó el archivo: Ficha (token) no válida» | Token borrado o mal copiado | Paso 4 |
 | La retroalimentación habla de «una página de inicio de sesión» | Token inválido o vencido: se descargó el login en vez del PDF | Crea otro token (paso 4) |
 | El botón no aparece | Plugin no activado en la tarea o cachés viejas | Paso 7.2 y purgar cachés |
 | El plugin corta antes de que termine | Timeout del plugin muy bajo | Súbelo en el paso 7.1 |

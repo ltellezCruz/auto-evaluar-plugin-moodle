@@ -1,0 +1,110 @@
+# Entorno completo de Auto Evaluar en contenedores.
+#
+#   docker compose up -d --build      (desde esta carpeta, con .env creado)
+#
+#   navegador ──▶ localhost:${MOODLE_PORT} ──▶ moodle ──▶ fastapi ──▶ Gemini
+#                                                │  ▲          │
+#                                                ▼  └──────────┘ descarga el PDF por http://moodle
+#                                                db
+name: auto-evaluar
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MARIADB_DATABASE: moodle
+      MARIADB_USER: moodle
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en docker/.env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en docker/.env}
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+
+  moodle:
+    image: auto-evaluar-moodle
+    build:
+      context: ..
+      dockerfile: docker/moodle/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${MOODLE_PORT:-8080}:80"
+    environment: &moodle-env
+      MOODLE_WWWROOT: ${MOODLE_WWWROOT:-http://localhost:8080}
+      MOODLE_SSLPROXY: ${MOODLE_SSLPROXY:-}
+      MOODLE_DB_HOST: db
+      MOODLE_DB_NAME: moodle
+      MOODLE_DB_USER: moodle
+      MOODLE_DB_PASSWORD: ${DB_PASSWORD}
+      MOODLE_ADMIN_USER: ${MOODLE_ADMIN_USER:-admin}
+      MOODLE_ADMIN_PASSWORD: ${MOODLE_ADMIN_PASSWORD:?Define MOODLE_ADMIN_PASSWORD en docker/.env}
+      MOODLE_ADMIN_EMAIL: ${MOODLE_ADMIN_EMAIL:-admin@example.com}
+      MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-Auto Evaluar}
+      MOODLE_SITE_SHORTNAME: ${MOODLE_SITE_SHORTNAME:-autoevaluar}
+      AIOCR_FASTAPI_URL: http://fastapi:8000
+      AIOCR_FASTAPI_TIMEOUT: ${AIOCR_FASTAPI_TIMEOUT:-240}
+      AIOCR_TOKEN_FILE: /compartido/moodle_token
+    volumes:
+      - moodledata:/var/www/moodledata
+      - compartido:/compartido
+    healthcheck:
+      # Sano cuando Apache responde y el token para FastAPI ya existe.
+      test: ["CMD-SHELL", "test -s /compartido/moodle_token && curl -fsS -o /dev/null http://localhost/login/index.php"]
+      interval: 10s
+      retries: 6
+      start_period: 15m
+
+  cron:
+    # Misma imagen que "moodle" (se construye una sola vez).
+    image: auto-evaluar-moodle
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      moodle:
+        condition: service_healthy
+    environment: *moodle-env
+    volumes:
+      - moodledata:/var/www/moodledata
+    command: ["bash", "-c", "while true; do runuser -u www-data -- php /var/www/html/admin/cli/cron.php > /dev/null; sleep 60; done"]
+
+  fastapi:
+    build:
+      context: ../fastapi-service
+    restart: unless-stopped
+    depends_on:
+      moodle:
+        condition: service_healthy
+    environment:
+      MOODLE_URL: http://moodle
+      MOODLE_PUBLIC_URL: ${MOODLE_WWWROOT:-http://localhost:8080}
+      MOODLE_TOKEN_FILE: /compartido/moodle_token
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Define GEMINI_API_KEY en docker/.env}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-120}
+      PDF_DPI: ${PDF_DPI:-200}
+    volumes:
+      - compartido:/compartido:ro
+      - ../data/transcripciones:/data/transcripciones
+    # Solo para diagnóstico desde este equipo (http://127.0.0.1:8000/).
+    ports:
+      - "127.0.0.1:${FASTAPI_PORT:-8000}:8000"
+
+volumes:
+  dbdata:
+  moodledata:
+  compartido:
+
+networks:
+  default:
+    ipam:
+      config:
+        # Dentro de 172.16.0.0/12, el rango que configurar.php desbloquea
+        # en la Seguridad HTTP de Moodle.
+        - subnet: 172.28.0.0/16

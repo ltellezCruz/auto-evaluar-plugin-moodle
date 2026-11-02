@@ -42,6 +42,7 @@ def _ruta(valor: str) -> Path:
 @dataclass(frozen=True)
 class Config:
     moodle_url: str
+    moodle_public_url: str
     moodle_token: str
     allowed_file_hosts: frozenset
     gemini_api_key: str
@@ -67,7 +68,20 @@ def cargar_config() -> Config:
             )
         return v
 
-    moodle_url = valor("MOODLE_URL", "http://127.0.0.1").rstrip("/")
+    moodle_url = valor("MOODLE_URL", "http://localhost").rstrip("/")
+    # Dirección pública de Moodle (su wwwroot), si es distinta de la que
+    # usa FastAPI. Ej.: Docker (interna http://moodle, pública
+    # http://localhost:8080) o ngrok. Ver moodle_client.a_url_interna.
+    moodle_public_url = valor("MOODLE_PUBLIC_URL", "").rstrip("/")
+
+    # El token puede venir directo o en un archivo (Docker lo genera al
+    # instalar Moodle y lo comparte por un volumen).
+    token = valor("MOODLE_TOKEN")
+    archivo_token = valor("MOODLE_TOKEN_FILE")
+    if not token and archivo_token and _ruta(archivo_token).is_file():
+        token = _ruta(archivo_token).read_text(encoding="utf-8").strip()
+    if not token:
+        valor("MOODLE_TOKEN", obligatorio=True)
 
     # Hosts a los que se les puede enviar el token al descargar archivos.
     # Si no se indican, solo el host de MOODLE_URL.
@@ -84,7 +98,8 @@ def cargar_config() -> Config:
 
     return Config(
         moodle_url=moodle_url,
-        moodle_token=valor("MOODLE_TOKEN", obligatorio=True),
+        moodle_public_url=moodle_public_url,
+        moodle_token=token,
         allowed_file_hosts=frozenset(h for h in allowed if h),
         gemini_api_key=valor("GEMINI_API_KEY", obligatorio=True),
         gemini_model=gemini_model,

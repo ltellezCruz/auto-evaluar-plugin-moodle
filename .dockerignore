@@ -1,0 +1,11 @@
+# Contexto de construcción de docker/moodle/Dockerfile (la raíz del repo):
+# solo hacen falta moodle-plugin/ y docker/moodle/.
+.git
+data/
+dist/
+docs/
+scripts/
+tools/
+fastapi-service/
+**/.env
+**/__pycache__
