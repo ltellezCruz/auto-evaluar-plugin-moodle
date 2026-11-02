@@ -73,7 +73,12 @@ def cargar_config() -> Config:
     # Si no se indican, solo el host de MOODLE_URL.
     hosts = valor("ALLOWED_FILE_HOSTS", "")
     allowed = {h.strip().lower() for h in hosts.split(",") if h.strip()}
-    allowed.add((urlparse(moodle_url).hostname or "").lower())
+    host_moodle = (urlparse(moodle_url).hostname or "").lower()
+    allowed.add(host_moodle)
+    # localhost y 127.0.0.1 son el mismo equipo: si Moodle se configuró con
+    # uno, las URL de los archivos pueden llegar con el otro.
+    if host_moodle in ("localhost", "127.0.0.1"):
+        allowed.update({"localhost", "127.0.0.1"})
 
     gemini_model = valor("GEMINI_MODEL", "gemini-3.5-flash-lite")
 

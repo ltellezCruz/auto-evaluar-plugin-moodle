@@ -4,6 +4,14 @@ Plugin de retroalimentación para la actividad Tarea de Moodle 4.5 (`assignfeedb
 
 Trabajo de grado. Estado: prototipo (en reestructuración).
 
+## Instalación
+
+| Modalidad | Para quién | Guía |
+|---|---|---|
+| 1. Moodle local en Windows | Probar todo en un equipo con el paquete oficial de Moodle | [docs/instalacion-local-windows.md](docs/instalacion-local-windows.md) |
+| 2. Docker | Levantar Moodle, base de datos y FastAPI en contenedores | En preparación |
+| 3. Moodle existente | Instalar el plugin en un Moodle propio (Windows, Linux o macOS) | En preparación |
+
 ## Estructura
 
 ```
