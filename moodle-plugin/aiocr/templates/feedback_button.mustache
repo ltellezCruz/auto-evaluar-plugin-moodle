@@ -1,0 +1,36 @@
+{{!
+    Este archivo es parte de Moodle - http://moodle.org/
+
+    assignfeedback_aiocr/feedback_button
+
+    Botón que aparece en la pantalla de calificación de una entrega.
+    Moodle renderiza esta plantilla del lado del servidor (locallib.php
+    la llama con $OUTPUT->render_from_template), y el JavaScript de locallib.php la "engancha"
+    del lado del cliente usando los atributos data-*.
+
+    Contexto esperado:
+    * assignmentid int
+    * userid int
+    * existingfeedback string (opcional, si ya se generó antes)
+}}
+<div class="assignfeedback_aiocr" data-region="aiocr-feedback-region">
+
+    <button type="button"
+            class="btn btn-secondary"
+            data-action="aiocr-generate"
+            data-assignmentid="{{assignmentid}}"
+            data-userid="{{userid}}">
+        {{#str}} requestfeedback, assignfeedback_aiocr {{/str}}
+    </button>
+
+    <div class="aiocr-spinner" data-region="aiocr-spinner" style="display:none;">
+        {{#str}} processing, assignfeedback_aiocr {{/str}}
+    </div>
+
+    <div class="aiocr-result" data-region="aiocr-result">
+        {{#existingfeedback}}
+            <div class="alert alert-info">{{existingfeedback}}</div>
+        {{/existingfeedback}}
+    </div>
+
+</div>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/assign/feedback/aiocr/db" VERSION="20260917" COMMENT="assignfeedback_aiocr">
+  <TABLES>
+    <TABLE NAME="assignfeedback_aiocr" COMMENT="Historial de solicitudes de retroalimentación generadas por IA/OCR, una fila por intento de generación (permite reintentos y trazabilidad).">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="assignment" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK a mdl_assign.id"/>
+        <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK a mdl_assign_grades.id"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Estudiante dueño de la entrega evaluada"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Docente que disparó la solicitud"/>
+        <FIELD NAME="provider" TYPE="char" LENGTH="100" NOTNULL="true" SEQUENCE="false" COMMENT="Nombre corto del adaptador de IA usado (ej. fastapi_adapter)"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending" SEQUENCE="false" COMMENT="pending | done | error"/>
+        <FIELD NAME="feedbacktext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Texto de retroalimentación ya listo para mostrar/guardar"/>
+        <FIELD NAME="rawresponse" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Respuesta cruda (JSON) del proveedor de IA, para depuración/auditoría"/>
+        <FIELD NAME="errormessage" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="assignment" TYPE="foreign" FIELDS="assignment" REFTABLE="assign" REFFIELDS="id"/>
+        <KEY NAME="grade" TYPE="foreign" FIELDS="grade" REFTABLE="assign_grades" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="grade_status" UNIQUE="false" FIELDS="grade, status"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>
