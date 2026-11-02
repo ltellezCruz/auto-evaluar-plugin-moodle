@@ -1,0 +1,6 @@
+# Versiones con las que se probó el servicio (Python 3.10 o superior).
+fastapi==0.141.1
+uvicorn==0.53.0
+pydantic==2.13.5
+requests==2.34.2
+pymupdf==1.28.2

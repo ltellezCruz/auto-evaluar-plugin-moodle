@@ -39,3 +39,40 @@ Otras opciones:
 - La variable de entorno `MOODLE_DIR` reemplaza a `--moodle-dir`.
 
 Sin `--upgrade`, después de cambiar `db/` o `version.php` hay que entrar a **Administración del sitio → Notificaciones**.
+
+## Servicio FastAPI
+
+```
+fastapi-service/
+├── app/
+│   ├── main.py            endpoints y pipeline (descarga → imágenes → Gemini en 2 pasos)
+│   ├── config.py          lee la configuración de .env / variables de entorno
+│   ├── moodle_client.py   API REST de Moodle y descarga con token
+│   ├── gemini_client.py   llamadas a Gemini y registro de tokens consumidos
+│   └── pdf.py             PDF → una imagen por página
+├── prompts/
+│   ├── extraer.txt        paso 1: transcripción
+│   └── evaluar.txt        paso 2: evaluación (la transcripción se pega al final)
+├── requirements.txt
+├── .env.example
+└── run.bat / run.sh
+```
+
+Requiere Python 3.10 o superior.
+
+1. Instalar dependencias (en un entorno virtual, recomendado):
+
+   ```bash
+   cd fastapi-service
+   python -m venv .venv
+   .venv\Scripts\pip install -r requirements.txt      # Windows
+   .venv/bin/pip install -r requirements.txt          # Linux
+   ```
+
+2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN` y `GEMINI_API_KEY`. Si Moodle se abre por ngrok, agregar ese dominio en `ALLOWED_FILE_HOSTS`: el servicio solo envía el token a los hosts de esa lista.
+
+3. Arrancar con `run.bat` (Windows) o `./run.sh` (Linux). Escucha en `http://127.0.0.1:8000`; `http://127.0.0.1:8000/` debe responder «Servidor FastAPI corriendo correctamente».
+
+Las transcripciones se guardan en `data/transcripciones/` (fuera de git). Los prompts se pueden editar sin tocar el código; basta con reiniciar el servicio.
+
+> El servicio no pide autenticación. Arrancarlo con `run.bat 0.0.0.0` lo expone a la red y cualquiera que lo alcance puede gastar la cuota de Gemini.

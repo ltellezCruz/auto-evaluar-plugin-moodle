@@ -1,0 +1,5 @@
+# Finales de línea según el sistema que ejecuta cada script.
+*.bat text eol=crlf
+*.sh text eol=lf
+*.php text eol=lf
+*.py text eol=lf
