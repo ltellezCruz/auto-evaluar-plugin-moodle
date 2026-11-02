@@ -126,7 +126,7 @@ Si prefieres no usar la terminal: ejecuta el comando sin `--php --upgrade --purg
    |---|---|
    | AI provider | FastAPI (servicio local/personalizado) |
    | FastAPI service URL | `http://127.0.0.1:8000` (sin barra final) |
-   | Request timeout (seconds) | `120` o más para PDFs de varias páginas (cada página es una llamada a Gemini, más una final) |
+   | Request timeout (seconds) | `240` (valor por defecto). Una página ya tarda unos 35 s; no lo subas por encima de 300, que es el límite de PHP y Apache del paquete |
 
 2. **En cada tarea:** abre la tarea → Configuración → **Tipos de retroalimentación** → marca el plugin junto a «Comentarios de retroalimentación» → Guardar.
 

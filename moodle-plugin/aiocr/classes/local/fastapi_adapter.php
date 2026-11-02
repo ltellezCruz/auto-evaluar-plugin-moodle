@@ -22,7 +22,7 @@ class fastapi_adapter implements ai_provider_interface {
 
     public function generate_feedback(array $context): array {
         $baseurl = rtrim(get_config('assignfeedback_aiocr', 'fastapi_url'), '/');
-        $timeout = (int) (get_config('assignfeedback_aiocr', 'fastapi_timeout') ?: 30);
+        $timeout = (int) (get_config('assignfeedback_aiocr', 'fastapi_timeout') ?: 240);
 
         if (empty($baseurl)) {
             return [

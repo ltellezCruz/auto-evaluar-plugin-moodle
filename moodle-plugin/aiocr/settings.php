@@ -28,11 +28,14 @@ if ($ADMIN->fulltree) {
         PARAM_URL
     ));
 
+    // Una evaluación hace (páginas + 1) llamadas a Gemini: 1 página ya
+    // tarda ~35 s. 240 s queda por debajo del límite habitual de PHP y
+    // Apache (300 s en el paquete de Windows).
     $settings->add(new admin_setting_configtext(
         'assignfeedback_aiocr/fastapi_timeout',
         get_string('settings:fastapi_timeout', 'assignfeedback_aiocr'),
         '',
-        30,
+        240,
         PARAM_INT
     ));
 }
