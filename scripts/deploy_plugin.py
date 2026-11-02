@@ -150,7 +150,8 @@ def main(argv=None):
     # La consola de Windows usa cp1252 por defecto y falla con tildes o flechas.
     for flujo in (sys.stdout, sys.stderr):
         if hasattr(flujo, "reconfigure"):
-            flujo.reconfigure(encoding="utf-8", errors="replace")
+            # line_buffering: que los mensajes salgan en orden con los de PHP.
+            flujo.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
     parser = argparse.ArgumentParser(description="Despliega el plugin aiocr en Moodle.")
     parser.add_argument("--moodle-dir", default=os.environ.get("MOODLE_DIR"),
@@ -169,6 +170,11 @@ def main(argv=None):
         parser.error("indica --moodle-dir (o MOODLE_DIR) o --container.")
 
     moodle_dir = Path(args.moodle_dir).expanduser().resolve() if args.moodle_dir else None
+
+    # Una ruta relativa como "server/php/php.exe" falla en Windows al
+    # lanzar el proceso; se convierte a absoluta. "php" (en el PATH) se deja.
+    if Path(args.php).expanduser().exists():
+        args.php = str(Path(args.php).expanduser().resolve())
 
     try:
         validar_origen()
