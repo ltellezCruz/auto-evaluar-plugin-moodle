@@ -1,0 +1,32 @@
+# --- Secretos: nunca al repositorio ---
+.env
+*.env
+!.env.example
+iniciar_fastapi.bat
+
+# --- Datos de estudiantes y resultados ---
+data/
+textos_extraidos/
+*.mbz
+*.csv
+
+# --- Artefactos generados ---
+dist/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- Software de terceros (se descarga aparte) ---
+MoodleWindowsInstaller-*/
+ngrok*/
+ngrok.exe
+
+# --- Editor y sistema ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+~$*
