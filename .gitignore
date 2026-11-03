@@ -30,3 +30,6 @@ Thumbs.db
 desktop.ini
 .DS_Store
 ~$*
+
+# --- Documentos que solo se mantienen en local ---
+docs/Manual_Tecnico_Plugin_Auto_Evaluar.md
