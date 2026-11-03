@@ -42,7 +42,7 @@ log.info("Moodle: %s | modelo: %s | hosts permitidos: %s | transcripciones: %s",
          config.moodle_url, config.gemini_model,
          ", ".join(sorted(config.allowed_file_hosts)), config.output_dir)
 
-app = FastAPI(title="Puente IA <-> Moodle")
+app = FastAPI(title="Auto Evaluar - servicio FastAPI")
 
 
 # --- Endpoints de diagnóstico ---

@@ -88,6 +88,16 @@ Las transcripciones quedan en `data/transcripciones/` del repositorio.
 | Comprobar FastAPI | Abrir <http://127.0.0.1:8000/> |
 | **Borrar todo**, incluidos cursos y usuarios | `docker compose down -v` |
 
+### Prueba automática de punta a punta
+
+Con los contenedores encendidos, desde la raíz del repositorio:
+
+```bash
+bash docker/pruebas/prueba_e2e.sh
+```
+
+Crea un curso, un estudiante y una entrega con `docker/pruebas/entrega_prueba.pdf`, ejecuta lo mismo que el botón y muestra el comentario guardado. Llama a Gemini de verdad (2 llamadas). En Windows se ejecuta desde Git Bash.
+
 Para probar un cambio del plugin sin reconstruir, se puede copiar al contenedor en ejecución con el script de despliegue. Ese cambio se pierde cuando el contenedor se vuelve a crear.
 
 ```bash

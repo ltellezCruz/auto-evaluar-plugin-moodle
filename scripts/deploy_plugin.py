@@ -140,10 +140,18 @@ def desplegar_contenedor(contenedor, ruta_moodle, owner, dry_run):
         ejecutar(["docker", "exec", contenedor, "chown", "-R", owner, destino], dry_run)
 
 
-def comando_cli(script, args, php, contenedor, ruta_contenedor, moodle_dir):
+def comando_cli(script, args, php, contenedor, ruta_contenedor, moodle_dir, owner=None):
+    # Los comandos de Moodle se ejecutan como el dueño de los archivos (el
+    # usuario del servidor web): si corren como root, dejan cachés en
+    # moodledata que Apache después no puede modificar.
+    usuario = owner.split(":")[0] if owner else None
     if contenedor:
-        return ["docker", "exec", contenedor, "php", f"{ruta_contenedor.rstrip('/')}/admin/cli/{script}", *args]
-    return [php, str(moodle_dir / "admin" / "cli" / script), *args]
+        como = ["-u", usuario] if usuario else []
+        return ["docker", "exec", *como, contenedor, "php", f"{ruta_contenedor.rstrip('/')}/admin/cli/{script}", *args]
+    comando = [php, str(moodle_dir / "admin" / "cli" / script), *args]
+    if usuario and os.name != "nt":
+        return ["sudo", "-u", usuario, *comando]
+    return comando
 
 
 def main(argv=None):
@@ -194,11 +202,11 @@ def main(argv=None):
         if args.upgrade:
             print("- Actualizando Moodle")
             ejecutar(comando_cli("upgrade.php", ["--non-interactive"], args.php,
-                                 args.container, args.container_path, moodle_dir), args.dry_run)
+                                 args.container, args.container_path, moodle_dir, args.owner), args.dry_run)
         if args.purge_caches:
             print("- Purgando cachés")
             ejecutar(comando_cli("purge_caches.php", [], args.php,
-                                 args.container, args.container_path, moodle_dir), args.dry_run)
+                                 args.container, args.container_path, moodle_dir, args.owner), args.dry_run)
 
     except (ErrorDespliegue, OSError) as e:
         print(f"ERROR: {e}", file=sys.stderr)

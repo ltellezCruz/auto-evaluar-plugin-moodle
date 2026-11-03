@@ -2,7 +2,7 @@
 
 Plugin de retroalimentación para la actividad Tarea de Moodle 4.5 (`assignfeedback_aiocr`). Envía la entrega de un estudiante a un servicio FastAPI, que transcribe el trabajo manuscrito y lo evalúa con Gemini. El resultado se guarda como comentario de retroalimentación.
 
-Trabajo de grado. Estado: prototipo (en reestructuración).
+Trabajo de grado. Estado: prototipo (madurez ALPHA). Licencia: GPLv3 (ver `LICENSE`), como exige Moodle para sus plugins.
 
 ## Instalación
 
@@ -17,11 +17,13 @@ Trabajo de grado. Estado: prototipo (en reestructuración).
 ```
 auto-evaluar/
 ├── moodle-plugin/aiocr/   código fuente del plugin (única fuente de verdad)
-├── fastapi-service/       servicio que habla con Moodle y Gemini
-├── tools/                 herramientas de medición
+├── fastapi-service/       servicio que habla con Moodle y Gemini (con sus pruebas en tests/)
+├── docker/                entorno completo en contenedores y prueba de punta a punta
 ├── scripts/               despliegue y empaquetado del plugin
-├── docs/                  manual y documentación
-└── data/                  resultados locales (no se versiona)
+├── tests/                 pruebas de los scripts
+├── tools/monitor/         medición de recursos para los experimentos
+├── docs/                  guías de instalación y manual
+└── data/                  transcripciones y mediciones locales (no se versiona)
 ```
 
 La carpeta `<moodle>/mod/assign/feedback/aiocr/` es solo el destino del despliegue: el código se edita aquí y se copia allí con el script de `scripts/`.
@@ -85,10 +87,38 @@ Requiere Python 3.10 o superior.
    .venv/bin/pip install -r requirements.txt          # Linux
    ```
 
-2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN` y `GEMINI_API_KEY`. Si Moodle se abre por ngrok, agregar ese dominio en `ALLOWED_FILE_HOSTS`: el servicio solo envía el token a los hosts de esa lista.
+2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN` y `GEMINI_API_KEY`. Si la dirección oficial de Moodle (`wwwroot`) es distinta de `MOODLE_URL` (ngrok, Docker), definir `MOODLE_PUBLIC_URL`. El servicio solo envía el token a los hosts permitidos (`ALLOWED_FILE_HOSTS`).
 
 3. Arrancar con `run.bat` (Windows) o `./run.sh` (Linux). Escucha en `http://127.0.0.1:8000`; `http://127.0.0.1:8000/` debe responder «Servidor FastAPI corriendo correctamente».
 
 Las transcripciones se guardan en `data/transcripciones/` (fuera de git). Los prompts se pueden editar sin tocar el código; basta con reiniciar el servicio.
 
 > El servicio no pide autenticación. Arrancarlo con `run.bat 0.0.0.0` lo expone a la red y cualquiera que lo alcance puede gastar la cuota de Gemini.
+
+## Pruebas
+
+Sin internet ni gasto de Gemini (Moodle y Gemini simulados):
+
+```bash
+python -m unittest discover -s tests -v                              # scripts de despliegue y empaquetado
+cd fastapi-service && python -m unittest discover -s tests -v        # servicio FastAPI
+```
+
+De punta a punta en el entorno Docker encendido (crea un curso y una entrega, y llama a Gemini de verdad):
+
+```bash
+bash docker/pruebas/prueba_e2e.sh
+```
+
+## Mediciones de recursos
+
+`tools/monitor/monitor.py` registra cada segundo la CPU, la RAM, el disco y la red del equipo y de los procesos de Moodle y FastAPI mientras se hacen evaluaciones.
+
+```bash
+pip install -r tools/monitor/requirements.txt
+python tools/monitor/monitor.py --etiqueta E1_flash_lite --notas "10 PDF de 2 páginas"
+```
+
+Se detiene con Ctrl+C. Guarda `data/mediciones/<fecha>_<hora>_<etiqueta>.csv` y un `.json` con los datos del experimento (etiqueta, notas, inicio, fin, número de filas y equipo). Nunca sobrescribe una medición anterior.
+
+Los procesos se reconocen en Windows (paquete de Moodle) y en Linux. Con Docker Desktop, los contenedores corren en una máquina virtual: solo valen las columnas del equipo completo.
