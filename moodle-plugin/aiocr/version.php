@@ -9,7 +9,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026110300;        // YYYYMMDDXX
+$plugin->version   = 2026110301;        // YYYYMMDDXX (ver db/upgrade.php y CHANGELOG.md)
 $plugin->requires  = 2024100700;        // Versión mínima de Moodle (4.5)
 $plugin->component = 'assignfeedback_aiocr';
 $plugin->maturity  = MATURITY_ALPHA;    // Prototipo de tesis, no producción

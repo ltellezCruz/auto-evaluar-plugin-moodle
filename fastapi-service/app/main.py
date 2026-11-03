@@ -33,6 +33,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from . import __version__
 from .config import cargar_config, leer_prompt
 from .gemini_client import consultar_gemini
 from .moodle_client import descargar_archivo_moodle, llamar_moodle
@@ -46,6 +47,7 @@ config = cargar_config()
 PROMPT_EXTRAER = leer_prompt(config, "extraer.txt")
 PROMPT_EVALUAR_BASE = leer_prompt(config, "evaluar.txt")
 
+log.info("Auto Evaluar %s", __version__)
 log.info("Moodle: %s | modelo: %s | hosts permitidos: %s | transcripciones: %s",
          config.moodle_url, config.gemini_model,
          ", ".join(sorted(config.allowed_file_hosts)),
@@ -58,6 +60,7 @@ limpiar_antiguas(config, forzar=True)
 # /docs y /openapi.json describen toda la API: solo si ENABLE_DOCS=true.
 app = FastAPI(
     title="Auto Evaluar - servicio FastAPI",
+    version=__version__,
     docs_url="/docs" if config.enable_docs else None,
     redoc_url=None,
     openapi_url="/openapi.json" if config.enable_docs else None,
@@ -78,7 +81,7 @@ def verificar_clave(x_aiocr_key: Optional[str] = Header(default=None)):
 
 @app.get("/")
 def raiz():
-    return {"mensaje": "Servidor FastAPI corriendo correctamente"}
+    return {"mensaje": "Servidor FastAPI corriendo correctamente", "version": __version__}
 
 
 @app.get("/moodle/info", dependencies=[Depends(verificar_clave)])
@@ -105,7 +108,10 @@ class SolicitudRetroalimentacion(BaseModel):
 
 
 @app.post("/ia/generar-retroalimentacion", dependencies=[Depends(verificar_clave)])
-def generar_retroalimentacion(solicitud: SolicitudRetroalimentacion):
+def generar_retroalimentacion(
+    solicitud: SolicitudRetroalimentacion,
+    x_aiocr_plugin_version: Optional[str] = Header(default=None, max_length=20),
+):
     """
     Endpoint que llama el plugin de Moodle cuando el profesor le da clic
     a "Auto Evaluar" sobre la entrega de UN estudiante específico.
@@ -124,16 +130,23 @@ def generar_retroalimentacion(solicitud: SolicitudRetroalimentacion):
                    "Intenta de nuevo en un momento.",
         )
     try:
-        return _evaluar(solicitud)
+        # Fuera de una petición HTTP (pruebas), el valor por defecto es el
+        # marcador Header(...) y no un texto.
+        version_plugin = x_aiocr_plugin_version if isinstance(x_aiocr_plugin_version, str) else None
+        return _evaluar(solicitud, version_plugin)
     finally:
         _cupos.release()
 
 
-def _evaluar(solicitud: SolicitudRetroalimentacion) -> dict:
+def _evaluar(solicitud: SolicitudRetroalimentacion, version_plugin: Optional[str] = None) -> dict:
     inicio = time.monotonic()
     primer_archivo = solicitud.files[0]
     registro = {
         "fecha": datetime.now().isoformat(timespec="seconds"),
+        # Con qué versiones se produjo esta evaluación (útil al comparar
+        # resultados entre versiones del plugin, del servicio o de los prompts).
+        "version_servicio": __version__,
+        "version_plugin": version_plugin,
         "assignmentid": solicitud.assignmentid,
         "userid": solicitud.userid,
         "archivo": primer_archivo.filename,

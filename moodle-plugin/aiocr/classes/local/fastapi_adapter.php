@@ -60,6 +60,8 @@ class fastapi_adapter implements ai_provider_interface {
             'CURLOPT_HTTPHEADER' => [
                 'Content-Type: application/json',
                 'X-Aiocr-Key: ' . $clave,
+                // Queda registrada junto a cada evaluación en el servicio.
+                'X-Aiocr-Plugin-Version: ' . get_config('assignfeedback_aiocr', 'version'),
             ],
         ]);
 

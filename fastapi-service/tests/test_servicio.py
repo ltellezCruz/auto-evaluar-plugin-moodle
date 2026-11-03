@@ -170,6 +170,8 @@ class PruebasServicio(unittest.TestCase):
         self.assertEqual(registro["paginas"], 2)
         self.assertEqual([ll["paso"] for ll in registro["llamadas"]], ["transcripcion", "transcripcion", "evaluacion"])
         self.assertEqual(registro["tokens_total"], 45)
+        from app import __version__
+        self.assertEqual(registro["version_servicio"], __version__)
         self.assertNotIn("est_prueba", json.dumps(registro))
 
         temporales_despues = set(glob.glob(os.path.join(tempfile.gettempdir(), "aiocr_*")))
@@ -308,8 +310,11 @@ class PruebasHTTP(unittest.TestCase):
         return self.requests.post(f"{self.base}/ia/generar-retroalimentacion", json=cuerpo,
                                   headers=cabeceras, timeout=5)
 
-    def test_raiz_sin_clave(self):
-        self.assertEqual(self.requests.get(self.base + "/", timeout=5).status_code, 200)
+    def test_raiz_sin_clave_muestra_version(self):
+        from app import __version__
+        r = self.requests.get(self.base + "/", timeout=5)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["version"], __version__)
 
     def test_sin_clave_401(self):
         self.assertEqual(self.post({}).status_code, 401)

@@ -12,6 +12,8 @@ Trabajo de grado. Estado: prototipo (madurez ALPHA). Licencia: GPLv3 (ver `LICEN
 | 2. Docker | Levantar Moodle, base de datos y FastAPI en contenedores | [docs/instalacion-docker.md](docs/instalacion-docker.md) |
 | 3. Moodle existente | Instalar el plugin en un Moodle propio (Windows, Linux o macOS) | [docs/instalacion-plugin.md](docs/instalacion-plugin.md) |
 
+**¿Ya tienes una versión instalada?** Mira el [CHANGELOG](CHANGELOG.md) y la guía de [actualización](docs/actualizacion.md). El plugin y el servicio comparten número de versión y se actualizan juntos.
+
 ## Estructura
 
 ```

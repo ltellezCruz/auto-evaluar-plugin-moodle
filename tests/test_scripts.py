@@ -8,6 +8,7 @@ Desde la raíz del repositorio:
 
 import importlib.util
 import io
+import re
 import shutil
 import tempfile
 import unittest
@@ -83,6 +84,35 @@ class PruebasDespliegue(unittest.TestCase):
         self.assertIn("no se borrará", salida)
         self.assertTrue((self.destino / "otro.txt").exists())
 
+    def poner_version_instalada(self, version):
+        ejecutar(deploy.main, ["--moodle-dir", str(self.moodle)])
+        archivo = self.destino / "version.php"
+        texto = archivo.read_text(encoding="utf-8")
+        archivo.write_text(re.sub(r"\$plugin->version\s*=\s*\d+", f"$plugin->version = {version}", texto),
+                           encoding="utf-8")
+
+    def test_no_instala_una_version_anterior(self):
+        self.poner_version_instalada(deploy.version_origen() + 1)
+        codigo, salida = ejecutar(deploy.main, ["--moodle-dir", str(self.moodle)])
+        self.assertEqual(codigo, 1)
+        self.assertIn("Cannot downgrade", salida)
+        # No tocó lo instalado ni hizo respaldo.
+        self.assertEqual(deploy.leer_version((self.destino / "version.php").read_text(encoding="utf-8")),
+                         deploy.version_origen() + 1)
+        self.assertFalse((self.tmp / "respaldos").exists())
+
+    def test_permitir_retroceso_explicito(self):
+        self.poner_version_instalada(deploy.version_origen() + 1)
+        codigo, salida = ejecutar(deploy.main, ["--moodle-dir", str(self.moodle), "--permitir-retroceso"])
+        self.assertEqual(codigo, 0)
+        self.assertIn("ADVERTENCIA", salida)
+
+    def test_actualizacion_muestra_versiones(self):
+        self.poner_version_instalada(deploy.version_origen() - 1)
+        codigo, salida = ejecutar(deploy.main, ["--moodle-dir", str(self.moodle)])
+        self.assertEqual(codigo, 0)
+        self.assertIn(f"-> nueva {deploy.version_origen()}", salida)
+
     def test_rechaza_carpeta_que_no_es_moodle(self):
         codigo, salida = ejecutar(deploy.main, ["--moodle-dir", str(self.tmp)])
         self.assertEqual(codigo, 1)
@@ -101,6 +131,32 @@ class PruebasDespliegue(unittest.TestCase):
         self.assertIn("docker exec moodle_web rm -rf /var/www/html/mod/assign/feedback/aiocr", salida)
         self.assertIn("docker exec moodle_web chown -R www-data", salida)
         self.assertIn("docker exec -u www-data moodle_web php /var/www/html/admin/cli/upgrade.php --non-interactive", salida)
+
+
+class PruebasVersiones(unittest.TestCase):
+
+    def test_plugin_y_servicio_con_la_misma_version(self):
+        """El release del plugin y la versión de FastAPI van a la par (CHANGELOG.md)."""
+        texto = (deploy.ORIGEN / "version.php").read_text(encoding="utf-8")
+        release = re.search(r"\$plugin->release\s*=\s*'([^']+)'", texto).group(1)
+        init = (RAIZ_REPO / "fastapi-service" / "app" / "__init__.py").read_text(encoding="utf-8")
+        servicio = re.search(r'__version__\s*=\s*"([^"]+)"', init).group(1)
+        self.assertEqual(release, servicio)
+
+    def test_changelog_menciona_la_version(self):
+        texto = (deploy.ORIGEN / "version.php").read_text(encoding="utf-8")
+        release = re.search(r"\$plugin->release\s*=\s*'([^']+)'", texto).group(1)
+        self.assertIn(f"## {release}", (RAIZ_REPO / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_upgrade_php_llega_a_la_version_actual(self):
+        """Si se sube $plugin->version con un paso de actualización, el último
+        savepoint de db/upgrade.php no puede ser mayor que la versión."""
+        version = deploy.version_origen()
+        upgrade = (deploy.ORIGEN / "db" / "upgrade.php").read_text(encoding="utf-8")
+        puntos = [int(v) for v in re.findall(r"upgrade_plugin_savepoint\(true,\s*(\d+)", upgrade)]
+        self.assertTrue(puntos)
+        self.assertLessEqual(max(puntos), version)
+        self.assertEqual(puntos, sorted(puntos), "los pasos van en orden")
 
 
 class PruebasEmpaquetado(unittest.TestCase):

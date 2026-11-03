@@ -22,6 +22,7 @@ Opciones útiles:
     --php RUTA      intérprete PHP para los comandos locales (por defecto "php")
     --owner USUARIO cambia el dueño de los archivos (Linux/Docker, ej. www-data)
     --dry-run       muestra lo que haría sin cambiar nada
+    --permitir-retroceso  copia aunque sea una versión anterior (ver docs/actualizacion.md)
 
 --moodle-dir también se puede dar con la variable de entorno MOODLE_DIR.
 Solo usa la biblioteca estándar de Python (3.8+).
@@ -29,6 +30,7 @@ Solo usa la biblioteca estándar de Python (3.8+).
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -67,6 +69,37 @@ def es_plugin_aiocr(carpeta: Path) -> bool:
     return COMPONENTE in version.read_text(encoding="utf-8", errors="ignore")
 
 
+def leer_version(texto: str):
+    """$plugin->version de un version.php (None si no se encuentra)."""
+    encontrada = re.search(r"\$plugin->version\s*=\s*(\d+)", texto)
+    return int(encontrada.group(1)) if encontrada else None
+
+
+def version_origen() -> int:
+    return leer_version((ORIGEN / "version.php").read_text(encoding="utf-8"))
+
+
+def impedir_retroceso(instalada, permitir: bool):
+    """Moodle no admite volver a una versión anterior del plugin: si el
+    código es más viejo que lo registrado en la base de datos, bloquea TODO
+    el sitio con "Cannot downgrade". Por eso no se copia código más viejo
+    que el que ya está instalado."""
+    nueva = version_origen()
+    if instalada is None or nueva >= instalada:
+        if instalada is not None:
+            print(f"- Versión instalada {instalada} -> nueva {nueva}")
+        return
+    mensaje = (
+        f"El repositorio tiene la versión {nueva}, más antigua que la instalada ({instalada}). "
+        "Moodle no permite volver atrás: el sitio quedaría bloqueado con \"Cannot downgrade\". "
+        "Para regresar a una versión anterior hay que restaurar también la base de datos "
+        "(ver docs/actualizacion.md)."
+    )
+    if not permitir:
+        raise ErrorDespliegue(mensaje)
+    print("ADVERTENCIA: " + mensaje)
+
+
 def validar_origen():
     if not es_plugin_aiocr(ORIGEN):
         raise ErrorDespliegue(f"No se encontró el plugin en {ORIGEN} (falta version.php).")
@@ -94,7 +127,7 @@ def respaldar(destino: Path, dry_run: bool):
         shutil.copytree(destino, respaldo)
 
 
-def desplegar_local(moodle_dir: Path, owner, dry_run):
+def desplegar_local(moodle_dir: Path, owner, dry_run, permitir_retroceso=False):
     destino = validar_moodle_local(moodle_dir)
 
     # is_junction existe desde Python 3.12 (enlaces "mklink /J" de Windows).
@@ -108,6 +141,7 @@ def desplegar_local(moodle_dir: Path, owner, dry_run):
             raise ErrorDespliegue(
                 f"{destino} existe pero no contiene {COMPONENTE}; no se borrará por seguridad."
             )
+        impedir_retroceso(leer_version((destino / "version.php").read_text(encoding="utf-8")), permitir_retroceso)
         respaldar(destino, dry_run)
         print(f"- Borrando {destino}")
         if not dry_run:
@@ -124,12 +158,18 @@ def desplegar_local(moodle_dir: Path, owner, dry_run):
             ejecutar(["chown", "-R", owner, str(destino)], dry_run)
 
 
-def desplegar_contenedor(contenedor, ruta_moodle, owner, dry_run):
+def desplegar_contenedor(contenedor, ruta_moodle, owner, dry_run, permitir_retroceso=False):
     destino = "/".join([ruta_moodle.rstrip("/"), *RUTA_EN_MOODLE])
     padre = destino.rsplit("/", 1)[0]
 
     print(f"- Verificando {padre} dentro de {contenedor}")
     ejecutar(["docker", "exec", contenedor, "test", "-d", padre], dry_run)
+
+    if not dry_run:
+        actual = subprocess.run(["docker", "exec", contenedor, "cat", f"{destino}/version.php"],
+                                capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if actual.returncode == 0:
+            impedir_retroceso(leer_version(actual.stdout), permitir_retroceso)
 
     # docker cp copia DENTRO del destino si ya existe; por eso se borra antes.
     print(f"- Reemplazando {destino} en {contenedor}")
@@ -172,6 +212,9 @@ def main(argv=None):
     parser.add_argument("--upgrade", action="store_true", help="Ejecuta admin/cli/upgrade.php.")
     parser.add_argument("--purge-caches", action="store_true", help="Ejecuta admin/cli/purge_caches.php.")
     parser.add_argument("--dry-run", action="store_true", help="Muestra los pasos sin ejecutarlos.")
+    parser.add_argument("--permitir-retroceso", action="store_true",
+                        help="Copia aunque el código sea más viejo que el instalado (solo si ya restauraste "
+                             "la base de datos a esa versión).")
     args = parser.parse_args(argv)
 
     if not args.moodle_dir and not args.container:
@@ -192,12 +235,14 @@ def main(argv=None):
         if moodle_dir:
             # Con --container además, se asume volumen montado: se copia en
             # disco y los comandos de Moodle se ejecutan en el contenedor.
-            desplegar_local(moodle_dir, None if args.container else args.owner, args.dry_run)
+            desplegar_local(moodle_dir, None if args.container else args.owner, args.dry_run,
+                            args.permitir_retroceso)
             if args.container and args.owner:
                 destino = "/".join([args.container_path.rstrip("/"), *RUTA_EN_MOODLE])
                 ejecutar(["docker", "exec", args.container, "chown", "-R", args.owner, destino], args.dry_run)
         else:
-            desplegar_contenedor(args.container, args.container_path, args.owner, args.dry_run)
+            desplegar_contenedor(args.container, args.container_path, args.owner, args.dry_run,
+                                 args.permitir_retroceso)
 
         if args.upgrade:
             print("- Actualizando Moodle")
