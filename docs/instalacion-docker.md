@@ -1,6 +1,6 @@
 # Modalidad 2: todo el entorno en Docker
 
-> **Estado:** los archivos están escritos, pero todavía **no se han ejecutado** en un equipo con Docker. Las piezas de FastAPI que usa esta modalidad (descarga por la red interna con `MOODLE_PUBLIC_URL`, token desde archivo) sí se probaron contra un Moodle real. Si algo falla al levantarlo, revisa la sección 6.
+> Probado en Windows 11 con Docker Desktop (Docker 29.9, Compose 5.6). Se construyeron las imágenes, Moodle 4.5.15+ se instaló y configuró solo, y una entrega en PDF se evaluó de punta a punta: plugin → FastAPI → descarga por la red interna → Gemini → comentario guardado. No se ha probado en Linux ni en macOS.
 
 Levanta cuatro contenedores con un solo comando. Moodle queda instalado y configurado para el plugin, sin pasos manuales en la administración.
 
@@ -50,7 +50,7 @@ El resto tiene valores por defecto. Moodle queda en `http://localhost:8080`.
 docker compose up -d --build
 ```
 
-La **primera vez** tarda varios minutos: construye las imágenes e instala Moodle. Para seguir el progreso:
+La **primera vez** tarda varios minutos. En el equipo de pruebas fueron unos 4 minutos para construir las imágenes y unos 5 para instalar Moodle. Durante la instalación, el comando parece detenido mientras espera a que Moodle esté listo. Para seguir el progreso desde otra terminal:
 
 ```bash
 docker compose logs -f moodle
@@ -68,7 +68,7 @@ Durante el arranque, `moodle` hace automáticamente lo que en la modalidad 1 son
 
 ## 4. Usar
 
-1. Entra a <http://localhost:8080> con el usuario `admin` (o el que pusiste en `MOODLE_ADMIN_USER`).
+1. Entra a <http://localhost:8080> con el usuario `admin` (o el que pusiste en `MOODLE_ADMIN_USER`). El sitio se instala en inglés. Para usarlo en español: Site administration → Language → Language packs → instala «Español - Internacional (es)» y elígelo como idioma por defecto en Language settings.
 2. Crea un curso, una tarea con entrega de archivos y un estudiante de prueba con una entrega en PDF. Es la sección 3 de la [guía local](instalacion-local-windows.md#3-preparar-un-curso-de-prueba).
 3. En la tarea → Configuración → Tipos de retroalimentación, activa el plugin.
 4. Ver todas las entregas → Calificar → **Auto Evaluar**.

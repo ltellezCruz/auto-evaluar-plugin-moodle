@@ -9,8 +9,8 @@ Trabajo de grado. Estado: prototipo (en reestructuración).
 | Modalidad | Para quién | Guía |
 |---|---|---|
 | 1. Moodle local en Windows | Probar todo en un equipo con el paquete oficial de Moodle | [docs/instalacion-local-windows.md](docs/instalacion-local-windows.md) |
-| 2. Docker | Levantar Moodle, base de datos y FastAPI en contenedores | [docs/instalacion-docker.md](docs/instalacion-docker.md) (sin probar aún) |
-| 3. Moodle existente | Instalar el plugin en un Moodle propio (Windows, Linux o macOS) | En preparación |
+| 2. Docker | Levantar Moodle, base de datos y FastAPI en contenedores | [docs/instalacion-docker.md](docs/instalacion-docker.md) |
+| 3. Moodle existente | Instalar el plugin en un Moodle propio (Windows, Linux o macOS) | [docs/instalacion-plugin.md](docs/instalacion-plugin.md) |
 
 ## Estructura
 
@@ -47,6 +47,14 @@ Otras opciones:
 - La variable de entorno `MOODLE_DIR` reemplaza a `--moodle-dir`.
 
 Sin `--upgrade`, después de cambiar `db/` o `version.php` hay que entrar a **Administración del sitio → Notificaciones**.
+
+## Empaquetar el plugin
+
+```bash
+python scripts/package_plugin.py
+```
+
+Genera `dist/assignfeedback_aiocr_<release>_<version>.zip`, con la carpeta `aiocr/` en la raíz. Ese zip se instala desde **Administración del sitio → Extensiones → Instalar complementos**, o se descomprime en `<moodle>/mod/assign/feedback/`. Antes de repartir una versión nueva, sube `$plugin->version` (y `release`) en `version.php`.
 
 ## Servicio FastAPI
 
