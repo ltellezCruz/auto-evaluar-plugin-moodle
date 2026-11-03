@@ -25,7 +25,8 @@ def obtener_consumo_tokens(respuesta_json):
     }
 
 
-def consultar_gemini(config: Config, pregunta: str, ruta_imagen: Optional[str] = None) -> str:
+def consultar_gemini(config: Config, pregunta: str, ruta_imagen: Optional[str] = None) -> tuple[str, dict]:
+    """Devuelve (texto de la respuesta, consumo de tokens)."""
     partes = []
 
     if ruta_imagen:
@@ -69,4 +70,4 @@ def consultar_gemini(config: Config, pregunta: str, ruta_imagen: Optional[str] =
         consumo["razonamiento"], consumo["total"],
     )
 
-    return "".join(p.get("text", "") for p in partes_respuesta).strip()
+    return "".join(p.get("text", "") for p in partes_respuesta).strip(), consumo

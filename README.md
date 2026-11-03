@@ -87,13 +87,19 @@ Requiere Python 3.10 o superior.
    .venv/bin/pip install -r requirements.txt          # Linux
    ```
 
-2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN` y `GEMINI_API_KEY`. Si la dirección oficial de Moodle (`wwwroot`) es distinta de `MOODLE_URL` (ngrok, Docker), definir `MOODLE_PUBLIC_URL`. El servicio solo envía el token a los hosts permitidos (`ALLOWED_FILE_HOSTS`).
+2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN`, `GEMINI_API_KEY` y `SERVICE_API_KEY` (clave que también va en «FastAPI API key» del plugin). Si la dirección oficial de Moodle (`wwwroot`) es distinta de `MOODLE_URL` (ngrok, Docker), definir `MOODLE_PUBLIC_URL`. El servicio solo envía el token a los hosts permitidos (`ALLOWED_FILE_HOSTS`).
 
 3. Arrancar con `run.bat` (Windows) o `./run.sh` (Linux). Escucha en `http://127.0.0.1:8000`; `http://127.0.0.1:8000/` debe responder «Servidor FastAPI corriendo correctamente».
 
-Las transcripciones se guardan en `data/transcripciones/` (fuera de git). Los prompts se pueden editar sin tocar el código; basta con reiniciar el servicio.
+Cada evaluación queda en `data/transcripciones/tarea_<id>/usuario_<id>_<fecha>.txt` más un `.json` con páginas, tokens por llamada, duración y resultado (fuera de git). Se borran a los `TRANSCRIPTIONS_DAYS` días. Los prompts se pueden editar sin tocar el código; basta con reiniciar el servicio.
 
-> El servicio no pide autenticación. Arrancarlo con `run.bat 0.0.0.0` lo expone a la red y cualquiera que lo alcance puede gastar la cuota de Gemini.
+Seguridad y límites (todo en `.env`):
+- Solo el plugin puede usar el servicio: cada solicitud lleva `SERVICE_API_KEY` en la cabecera `X-Aiocr-Key` (si no, 401).
+- El token de Moodle solo se envía a los hosts permitidos y a la ruta `/webservice/pluginfile.php/`.
+- `MAX_FILE_MB`, `MAX_PAGES` y `MAX_CONCURRENT` limitan el tamaño del archivo, las páginas por PDF y las evaluaciones simultáneas.
+- `/docs` está apagado salvo con `ENABLE_DOCS=true`.
+
+> Aunque pida clave, el servicio no usa HTTPS: déjalo en `127.0.0.1` (valor por defecto de `run.bat`) o detrás de un firewall.
 
 ## Pruebas
 

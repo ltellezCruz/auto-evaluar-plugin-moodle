@@ -128,6 +128,7 @@ En un servidor institucional, coordina este cambio con el área de TI.
 1. Administración del sitio → Extensiones → Módulos de actividades → Tarea → **Extensiones de retroalimentación** → sección del plugin:
    - **AI provider:** FastAPI.
    - **FastAPI service URL:** la del paso 1, sin barra final.
+   - **FastAPI API key:** la misma clave que `SERVICE_API_KEY` del paso 7.
    - **Request timeout:** `240` segundos. Una página tarda unos 35 s. Ten en cuenta que el servidor web también tiene su propio límite: `max_execution_time` de PHP y los timeouts de Apache, Nginx o PHP-FPM. Ese límite debe ser mayor.
 2. En cada tarea donde quieras el botón: Configuración → **Tipos de retroalimentación** → activa el plugin.
 3. Por defecto pueden usar el botón los roles Profesor, Profesor sin permiso de edición y Gestor (capacidad `assignfeedback/aiocr:generate`).
@@ -149,7 +150,10 @@ En `.env`:
 MOODLE_URL=<wwwroot>        # ver la excepción del paso 1
 MOODLE_TOKEN=<token del paso 4>
 GEMINI_API_KEY=<tu clave>
+SERVICE_API_KEY=<clave compartida con el plugin>
 ```
+
+Genera `SERVICE_API_KEY` con `python -c "import secrets; print(secrets.token_urlsafe(32))"` y ponla también en «FastAPI API key» del plugin (paso 6).
 
 `.env.example` explica el resto de variables: modelo, DPI, carpeta de transcripciones y timeouts.
 
@@ -220,9 +224,21 @@ docker run -d --name aiocr-fastapi --restart unless-stopped \
 
 ## 9. Seguridad y datos
 
-- **FastAPI no pide autenticación.** Que escuche solo en `127.0.0.1` (escenarios A y C), o limita con un firewall el puerto 8000 a la IP de Moodle (escenario B). Cualquiera que lo alcance puede gastar tu cuota de Gemini.
+Qué protege al servicio y qué depende de ti:
+
+| Riesgo | Protección |
+|---|---|
+| Que otro programa use FastAPI y gaste tu cuota de Gemini | Cada solicitud debe traer `SERVICE_API_KEY` (cabecera `X-Aiocr-Key`); sin ella responde 401. **Además**, que escuche solo en `127.0.0.1` (escenarios A y C) o limita con un firewall el puerto 8000 a la IP de Moodle (escenario B) |
+| Que el token de Moodle termine en otro servidor | Solo se envía a los hosts de `MOODLE_URL` / `ALLOWED_FILE_HOSTS` y solo a la ruta `/webservice/pluginfile.php/` |
+| Que alguien cambie lo que se le pide a Gemini | Los prompts viven solo en el servidor; la solicitud solo dice qué archivo evaluar. Los prompts tratan el contenido de la entrega como datos, no como instrucciones |
+| Que un estudiante use el botón | Solo los roles con `assignfeedback/aiocr:generate` (profesores y gestores) |
+| Solicitudes que agotan memoria, disco o cuota | Límites `MAX_FILE_MB`, `MAX_PAGES` y `MAX_CONCURRENT`; los archivos temporales se borran al terminar cada evaluación |
+| Que la carpeta de transcripciones crezca sin fin | Se borran las de más de `TRANSCRIPTIONS_DAYS` días; con `SAVE_TRANSCRIPTIONS=false` no se guarda nada |
+| Que se conozca la API | `/docs` y `/openapi.json` están apagados (`ENABLE_DOCS=false`) |
+
+- **La clave viaja en texto plano si FastAPI está en otro servidor (escenario B) sin HTTPS.** Dentro de una red interna de confianza suele bastar con el firewall; si no, pon FastAPI detrás de un proxy con HTTPS.
 - **El token y la clave de Gemini viven solo en `.env`.** No los subas al repositorio ni los compartas. Dale al token una fecha de vencimiento.
-- **El contenido de las entregas se envía a Google (Gemini).** Las transcripciones quedan guardadas en `data/transcripciones/`. Antes de usarlo con estudiantes reales, acuerda con la institución el tratamiento de datos personales.
+- **El contenido de las entregas se envía a Google (Gemini).** Las transcripciones quedan guardadas en `data/transcripciones/tarea_<id>/` con los id numéricos de Moodle (no el nombre de usuario) durante `TRANSCRIPTIONS_DAYS` días. Antes de usarlo con estudiantes reales, acuerda con la institución el tratamiento de datos personales.
 
 ## 10. Actualizar y desinstalar
 
@@ -241,4 +257,6 @@ docker run -d --name aiocr-fastapi --restart unless-stopped \
 | «Moodle redirigió la descarga» | `MOODLE_PUBLIC_URL` distinto de `$CFG->wwwroot` | Copia exactamente el `wwwroot` |
 | «no está en ALLOWED_FILE_HOSTS» | `MOODLE_URL` no es el `wwwroot` | Pon el `wwwroot` exacto en `MOODLE_URL` (paso 1) |
 | «Ficha (token) no válida» | Token borrado, vencido o mal copiado | Paso 4 |
+| «El servicio FastAPI rechazó la clave» | «FastAPI API key» distinta de `SERVICE_API_KEY` | Pasos 6 y 7 |
+| «El servicio ya está procesando N evaluaciones» | Se alcanzó `MAX_CONCURRENT` | Esperar, o subir `MAX_CONCURRENT` si el servidor lo soporta |
 | El botón no aparece | El plugin no está activado en la tarea, o hay cachés viejas | Paso 6.2 y purgar cachés |

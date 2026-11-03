@@ -2,7 +2,7 @@
 // Deja Moodle listo para el plugin (se ejecuta en cada arranque; es idempotente):
 //   - servicios web + REST + servicio móvil (el que usa el token)
 //   - Seguridad HTTP: permite llamar a FastAPI dentro de la red de Docker
-//   - configuración del plugin (URL de FastAPI y timeout)
+//   - configuración del plugin (URL de FastAPI, timeout y clave del servicio)
 //   - token del administrador, escrito en AIOCR_TOKEN_FILE para FastAPI
 //
 // Equivale a los pasos 4, 5 y 7.1 de la guía de instalación local.
@@ -50,6 +50,7 @@ aiocr_guardar_ajuste('curlsecurityallowedport', implode("\n", ['443', '80', '800
 set_config('provider', 'fastapi_adapter', 'assignfeedback_aiocr');
 set_config('fastapi_url', getenv('AIOCR_FASTAPI_URL') ?: 'http://fastapi:8000', 'assignfeedback_aiocr');
 set_config('fastapi_timeout', getenv('AIOCR_FASTAPI_TIMEOUT') ?: 240, 'assignfeedback_aiocr');
+set_config('fastapi_apikey', getenv('AIOCR_SERVICE_KEY') ?: '', 'assignfeedback_aiocr');
 echo "  plugin: fastapi_url = " . get_config('assignfeedback_aiocr', 'fastapi_url') . "\n";
 
 // Token permanente del administrador para el servicio móvil.

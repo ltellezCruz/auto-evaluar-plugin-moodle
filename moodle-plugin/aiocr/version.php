@@ -9,11 +9,11 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026091700;        // YYYYMMDDXX
+$plugin->version   = 2026110300;        // YYYYMMDDXX
 $plugin->requires  = 2024100700;        // Versión mínima de Moodle (4.5)
 $plugin->component = 'assignfeedback_aiocr';
 $plugin->maturity  = MATURITY_ALPHA;    // Prototipo de tesis, no producción
-$plugin->release   = '0.1.0';
+$plugin->release   = '0.2.0';
 
 // Este subplugin depende de que mod_assign esté instalado.
 $plugin->dependencies = [

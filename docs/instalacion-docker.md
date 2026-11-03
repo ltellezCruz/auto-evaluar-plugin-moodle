@@ -40,6 +40,7 @@ Edita `docker/.env` y completa al menos:
 |---|---|
 | `MOODLE_ADMIN_PASSWORD` | Contraseña del administrador: 8 o más caracteres con número, minúscula, mayúscula y carácter especial |
 | `DB_PASSWORD`, `DB_ROOT_PASSWORD` | Contraseñas de la base de datos. Solo se usan dentro de Docker |
+| `AIOCR_SERVICE_KEY` | Clave compartida entre el plugin y FastAPI. Se configura sola en los dos. Genérala con `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `GEMINI_API_KEY` | Tu clave de Gemini |
 
 El resto tiene valores por defecto. Moodle queda en `http://localhost:8080`.
@@ -73,7 +74,7 @@ Durante el arranque, `moodle` hace automáticamente lo que en la modalidad 1 son
 3. En la tarea → Configuración → Tipos de retroalimentación, activa el plugin.
 4. Ver todas las entregas → Calificar → **Auto Evaluar**.
 
-Las transcripciones quedan en `data/transcripciones/` del repositorio.
+Las transcripciones quedan en `data/transcripciones/tarea_<id>/` del repositorio, cada una con un `.json` de metadatos (páginas, tokens, duración). Se borran solas a los `TRANSCRIPTIONS_DAYS` días (180 por defecto). Los logs de cada contenedor rotan a partir de 10 MB.
 
 ## 5. Operación
 
@@ -85,7 +86,7 @@ Las transcripciones quedan en `data/transcripciones/` del repositorio.
 | Aplicar cambios del plugin o de FastAPI | `docker compose up -d --build` |
 | Cambiar los prompts | `docker compose up -d --build fastapi` |
 | Ver errores de FastAPI | `docker compose logs -f fastapi` |
-| Comprobar FastAPI | Abrir <http://127.0.0.1:8000/> |
+| Comprobar FastAPI | Abrir <http://127.0.0.1:8000/>. Las demás rutas exigen la cabecera `X-Aiocr-Key` |
 | **Borrar todo**, incluidos cursos y usuarios | `docker compose down -v` |
 
 ### Prueba automática de punta a punta

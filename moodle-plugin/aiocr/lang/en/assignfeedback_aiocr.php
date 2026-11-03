@@ -14,6 +14,8 @@ $string['settings:provider'] = 'AI provider';
 $string['settings:provider_help'] = 'Which adapter class handles the AI/OCR request. Add new providers by creating a class in classes/local/ that implements ai_provider_interface, then select it here — no core code changes needed.';
 $string['settings:fastapi_url'] = 'FastAPI service URL';
 $string['settings:fastapi_url_help'] = 'Base URL of your FastAPI service (e.g. http://127.0.0.1:8000). Used only by the "FastAPI local" provider.';
+$string['settings:fastapi_apikey'] = 'FastAPI API key';
+$string['settings:fastapi_apikey_help'] = 'Shared secret sent to the FastAPI service in the X-Aiocr-Key header. It must be identical to SERVICE_API_KEY in the service .env file. Without it the service rejects every request.';
 $string['settings:fastapi_timeout'] = 'Request timeout (seconds)';
 $string['provider:fastapi_adapter'] = 'FastAPI (servicio local/personalizado)';
 

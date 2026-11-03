@@ -8,10 +8,18 @@
 #                                                db
 name: auto-evaluar
 
+# Los logs de los contenedores rotan: como mucho 3 archivos de 10 MB por servicio.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: mariadb:10.11
     restart: unless-stopped
+    logging: *logging
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     environment:
       MARIADB_DATABASE: moodle
@@ -31,6 +39,7 @@ services:
       context: ..
       dockerfile: docker/moodle/Dockerfile
     restart: unless-stopped
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
@@ -50,6 +59,7 @@ services:
       MOODLE_SITE_SHORTNAME: ${MOODLE_SITE_SHORTNAME:-autoevaluar}
       AIOCR_FASTAPI_URL: http://fastapi:8000
       AIOCR_FASTAPI_TIMEOUT: ${AIOCR_FASTAPI_TIMEOUT:-240}
+      AIOCR_SERVICE_KEY: ${AIOCR_SERVICE_KEY:?Define AIOCR_SERVICE_KEY en docker/.env}
       AIOCR_TOKEN_FILE: /compartido/moodle_token
     volumes:
       - moodledata:/var/www/moodledata
@@ -66,6 +76,7 @@ services:
     image: auto-evaluar-moodle
     pull_policy: never
     restart: unless-stopped
+    logging: *logging
     depends_on:
       moodle:
         condition: service_healthy
@@ -78,6 +89,7 @@ services:
     build:
       context: ../fastapi-service
     restart: unless-stopped
+    logging: *logging
     depends_on:
       moodle:
         condition: service_healthy
@@ -89,6 +101,11 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-120}
       PDF_DPI: ${PDF_DPI:-200}
+      SERVICE_API_KEY: ${AIOCR_SERVICE_KEY}
+      MAX_FILE_MB: ${MAX_FILE_MB:-20}
+      MAX_PAGES: ${MAX_PAGES:-20}
+      MAX_CONCURRENT: ${MAX_CONCURRENT:-3}
+      TRANSCRIPTIONS_DAYS: ${TRANSCRIPTIONS_DAYS:-180}
     volumes:
       - compartido:/compartido:ro
       - ../data/transcripciones:/data/transcripciones

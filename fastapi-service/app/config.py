@@ -32,6 +32,10 @@ def _leer_env(ruta: Path) -> dict:
     return valores
 
 
+def _booleano(valor: str) -> bool:
+    return str(valor).strip().lower() in ("1", "true", "si", "sí", "yes", "on")
+
+
 def _ruta(valor: str) -> Path:
     """Las rutas relativas se resuelven desde fastapi-service/, no desde
     la carpeta donde se lanzó uvicorn."""
@@ -54,6 +58,13 @@ class Config:
     moodle_timeout: int
     download_timeout: int
     gemini_timeout: int
+    service_api_key: str
+    max_file_mb: int
+    max_pages: int
+    max_concurrent: int
+    save_transcriptions: bool
+    transcriptions_days: int
+    enable_docs: bool
 
 
 def cargar_config() -> Config:
@@ -113,6 +124,20 @@ def cargar_config() -> Config:
         moodle_timeout=int(valor("MOODLE_TIMEOUT", "10")),
         download_timeout=int(valor("DOWNLOAD_TIMEOUT", "30")),
         gemini_timeout=int(valor("GEMINI_TIMEOUT", "120")),
+        # Clave que el plugin envía en cada solicitud (cabecera X-Aiocr-Key).
+        # Sin ella nadie más puede usar el servicio ni gastar la cuota de Gemini.
+        service_api_key=valor("SERVICE_API_KEY", obligatorio=True),
+        # Límites por solicitud: tamaño del archivo, páginas que se procesan
+        # y evaluaciones simultáneas (protegen memoria, tiempo y cuota).
+        max_file_mb=int(valor("MAX_FILE_MB", "20")),
+        max_pages=int(valor("MAX_PAGES", "20")),
+        max_concurrent=int(valor("MAX_CONCURRENT", "3")),
+        # Transcripciones en disco: se pueden desactivar, y las de más de
+        # TRANSCRIPTIONS_DAYS días se borran solas (0 = no borrar nunca).
+        save_transcriptions=_booleano(valor("SAVE_TRANSCRIPTIONS", "true")),
+        transcriptions_days=int(valor("TRANSCRIPTIONS_DAYS", "180")),
+        # /docs muestra la API completa: apagado salvo para desarrollo.
+        enable_docs=_booleano(valor("ENABLE_DOCS", "false")),
     )
 
 

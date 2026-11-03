@@ -28,6 +28,14 @@ if ($ADMIN->fulltree) {
         PARAM_URL
     ));
 
+    // Misma clave que SERVICE_API_KEY en el .env de FastAPI.
+    $settings->add(new admin_setting_configpasswordunmask(
+        'assignfeedback_aiocr/fastapi_apikey',
+        get_string('settings:fastapi_apikey', 'assignfeedback_aiocr'),
+        get_string('settings:fastapi_apikey_help', 'assignfeedback_aiocr'),
+        ''
+    ));
+
     // Una evaluación hace (páginas + 1) llamadas a Gemini: 1 página ya
     // tarda ~35 s. 240 s queda por debajo del límite habitual de PHP y
     // Apache (300 s en el paquete de Windows).

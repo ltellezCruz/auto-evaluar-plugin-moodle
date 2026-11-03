@@ -126,6 +126,7 @@ Si prefieres no usar la terminal: ejecuta el comando sin `--php --upgrade --purg
    |---|---|
    | AI provider | FastAPI (servicio local/personalizado) |
    | FastAPI service URL | `http://127.0.0.1:8000` (sin barra final) |
+   | FastAPI API key | La misma clave que pondrás en `SERVICE_API_KEY` en el paso 8 |
    | Request timeout (seconds) | `240` (valor por defecto). Una página ya tarda unos 35 s; no lo subas por encima de 300, que es el límite de PHP y Apache del paquete |
 
 2. **En cada tarea:** abre la tarea → Configuración → **Tipos de retroalimentación** → marca el plugin junto a «Comentarios de retroalimentación» → Guardar.
@@ -147,7 +148,16 @@ En `.env` completa al menos:
 MOODLE_URL=http://localhost
 MOODLE_TOKEN=<el token del paso 4>
 GEMINI_API_KEY=<tu clave de Gemini>
+SERVICE_API_KEY=<clave del servicio>
 ```
+
+`SERVICE_API_KEY` es una clave que inventas tú y que comparten el plugin y FastAPI: sin ella, el servicio rechaza cualquier solicitud. Genera una larga y aleatoria con:
+
+```bat
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Pon la misma en «FastAPI API key» del plugin (paso 7.1).
 
 `.env` no se sube al repositorio. No pegues estas claves en chats, correos ni documentos.
 
@@ -165,7 +175,7 @@ Cuando veas `Application startup complete`, abre <http://127.0.0.1:8000/>: debe 
 2. Debajo de «Calificación» aparece el botón **Auto Evaluar**. Dale clic una sola vez.
 3. Aparece «Procesando con IA...». Al terminar, sale «Retroalimentación generada. Recargando...».
 4. El texto queda en **Comentarios de retroalimentación** y la calificación numérica no cambia.
-5. La transcripción queda guardada en `<REPO>\data\transcripciones\`.
+5. La transcripción queda guardada en `<REPO>\data\transcripciones\tarea_<id>\usuario_<id>_<fecha>.txt`, junto a un `.json` con las páginas, los tokens consumidos y la duración.
 
 ## 10. Uso diario
 
@@ -219,6 +229,9 @@ Para volver al modo local: cierra ngrok, vuelve a poner `$CFG->wwwroot = 'http:/
 | «no está en ALLOWED_FILE_HOSTS» | La dirección del sitio no coincide con `MOODLE_URL` | Con ngrok, define `MOODLE_PUBLIC_URL` (paso 11) |
 | «Moodle redirigió la descarga» | `MOODLE_PUBLIC_URL` no coincide con `$CFG->wwwroot` | Usa exactamente la misma dirección |
 | «Moodle no entregó el archivo: Ficha (token) no válida» | Token borrado o mal copiado | Paso 4 |
+| «El servicio FastAPI rechazó la clave» | «FastAPI API key» distinta de `SERVICE_API_KEY` | Pasos 7.1 y 8 |
+| «El servicio ya está procesando N evaluaciones» | Se alcanzó `MAX_CONCURRENT` | Esperar, o subir `MAX_CONCURRENT` en `.env` |
+| «El PDF tiene N páginas; el máximo es…» o «El archivo supera el máximo…» | Límites `MAX_PAGES` / `MAX_FILE_MB` | Subirlos en `.env` si es necesario |
 | La retroalimentación habla de «una página de inicio de sesión» | Token inválido o vencido: se descargó el login en vez del PDF | Crea otro token (paso 4) |
 | El botón no aparece | Plugin no activado en la tarea o cachés viejas | Paso 7.2 y purgar cachés |
 | El plugin corta antes de que termine | Timeout del plugin muy bajo | Súbelo en el paso 7.1 |

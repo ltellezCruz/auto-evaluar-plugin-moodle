@@ -52,8 +52,15 @@ class fastapi_adapter implements ai_provider_interface {
 
         $endpoint = $baseurl . '/ia/generar-retroalimentacion';
 
+        // La clave compartida identifica a este Moodle ante el servicio:
+        // sin ella FastAPI rechaza la solicitud (401).
+        $clave = (string) get_config('assignfeedback_aiocr', 'fastapi_apikey');
+
         $respuesta = $curl->post($endpoint, json_encode($payload), [
-            'CURLOPT_HTTPHEADER' => ['Content-Type: application/json'],
+            'CURLOPT_HTTPHEADER' => [
+                'Content-Type: application/json',
+                'X-Aiocr-Key: ' . $clave,
+            ],
         ]);
 
         $errno = $curl->get_errno();
@@ -72,14 +79,22 @@ class fastapi_adapter implements ai_provider_interface {
         $decodificado = json_decode($respuesta, true);
 
         if ($httpcode !== 200 || !is_array($decodificado)) {
+            if ($httpcode === 401) {
+                $mensaje = 'El servicio FastAPI rechazó la clave. Revisa que "FastAPI API key" en la '
+                    . 'configuración del plugin sea igual a SERVICE_API_KEY en el .env de FastAPI.';
+            } else if (is_array($decodificado) && isset($decodificado['detail']) && is_string($decodificado['detail'])) {
+                // Errores controlados del servicio (archivo muy grande, demasiadas páginas, ocupado...).
+                $mensaje = "FastAPI ({$httpcode}): " . $decodificado['detail'];
+            } else {
+                $mensaje = "FastAPI respondió con estado {$httpcode}. "
+                    . "URL intentada: {$endpoint}. "
+                    . "Cuerpo de la respuesta: " . substr((string) $respuesta, 0, 300);
+            }
             return [
                 'success'      => false,
                 'feedbacktext' => '',
                 'raw'          => ['http_code' => $httpcode, 'body' => $respuesta],
-                'error'        => "FastAPI respondió con estado {$httpcode}. "
-                    . "URL intentada: {$endpoint}. "
-                    . "curl errno: {$errno} | curl error: {$curl->error}. "
-                    . "Cuerpo de la respuesta: " . substr((string) $respuesta, 0, 300),
+                'error'        => $mensaje,
             ];
         }
 
