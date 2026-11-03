@@ -108,7 +108,7 @@ FastAPI necesita un token para descargar las entregas.
 1. Administración del sitio → General → Características avanzadas → **Habilitar servicios web**.
 2. Servidor → Servicios web → Vista general → Habilitar protocolos → **REST**.
 3. Servidor → Servicios web → Servicios externos → comprueba que **Moodle mobile web service** esté habilitado.
-4. Servidor → Servicios web → Gestionar tokens → **Crear ficha**: usuario administrador, servicio «Moodle mobile web service». Revisa la fecha «Válido hasta».
+4. Servidor → Servicios web → Administrar fichas (tokens) → **Crear ficha**: usuario administrador, servicio «Moodle mobile web service». Revisa la fecha «Válido hasta».
 5. Guarda el token en privado. Va en el `.env` de FastAPI (paso 7).
 
 > Lo probado es un token del administrador del sitio. Un usuario dedicado con menos permisos es más seguro, pero necesita al menos `webservice/rest:use` y poder ver las entregas de los cursos (rol de profesor). Esa configuración no está probada.

@@ -82,7 +82,7 @@ FastAPI usa un token de Moodle para descargar el PDF de la entrega.
 1. Administración del sitio → General → **Características avanzadas** → marca **Habilitar servicios web** → Guardar.
 2. Servidor → Servicios web → **Vista general** → Habilitar protocolos → marca **REST** → Guardar.
 3. Servidor → Servicios web → **Servicios externos**: comprueba que **Moodle mobile web service** esté habilitado.
-4. Servidor → Servicios web → **Gestionar tokens** → **Crear ficha**:
+4. Servidor → Servicios web → **Administrar fichas (tokens)** → **Crear ficha**:
    - Usuario: tu administrador, que también es profesor del curso.
    - Servicio: Moodle mobile web service.
    - **Válido hasta:** viene con una fecha cercana. Desmárcalo o pon una fecha lejana; si no, el token deja de funcionar sin aviso.
