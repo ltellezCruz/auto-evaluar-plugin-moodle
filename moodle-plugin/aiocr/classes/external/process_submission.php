@@ -183,6 +183,7 @@ class process_submission extends external_api {
     private static function extraer_texto_en_linea(\assign $assign, \stdClass $submission): ?string {
         global $DB;
         $registro = $DB->get_record('assignsubmission_onlinetext', ['submission' => $submission->id]);
-        return $registro ? strip_tags($registro->onlinetext) : null;
+        // html_to_text conserva párrafos y saltos de línea (strip_tags los perdía).
+        return $registro ? trim(html_to_text($registro->onlinetext, 0, false)) : null;
     }
 }

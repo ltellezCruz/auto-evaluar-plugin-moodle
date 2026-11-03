@@ -71,6 +71,8 @@ class MoodleYGeminiFalsos(BaseHTTPRequestHandler):
             self._responder(200, "application/json", json.dumps(error).encode())
         elif "/texto" in self.path:
             self._responder(200, "text/plain", b"no es un pdf")
+        elif "/una_pagina" in self.path:
+            self._responder(200, "application/pdf", crear_pdf(1))
         else:
             self._responder(200, "application/pdf", self.pdf)
 
@@ -135,6 +137,12 @@ class PruebasServicio(unittest.TestCase):
         return self.main.SolicitudRetroalimentacion(
             assignmentid=1, userid=7, username=username,
             files=[self.main.ArchivoEntrega(filename="tarea.pdf", fileurl=url, mimetype="application/pdf")],
+        )
+
+    def solicitud_varios(self, nombres_y_urls, onlinetext=None):
+        return self.main.SolicitudRetroalimentacion(
+            assignmentid=1, userid=7, onlinetext=onlinetext,
+            files=[self.main.ArchivoEntrega(filename=n, fileurl=u) for n, u in nombres_y_urls],
         )
 
     def url_moodle(self, base=None):
@@ -279,6 +287,67 @@ class PruebasServicio(unittest.TestCase):
         self.assertEqual(limpiar_antiguas(self.config_base, forzar=True), 1)
         self.assertFalse(viejo.exists())
         self.assertTrue(nuevo.exists())
+
+    def test_varios_archivos_en_orden(self):
+        r = self.main.generar_retroalimentacion(self.solicitud_varios([
+            ("parte1.pdf", self.url_moodle()),                  # 2 páginas
+            ("parte2.pdf", self.url_moodle() + "/una_pagina"),  # 1 página
+        ]))
+        self.assertTrue(r["success"])
+        posts = self.posts()
+        self.assertEqual(len(posts), 4, "3 páginas + 1 evaluación")
+        transcripcion = next(self.salida.rglob("*.txt")).read_text(encoding="utf-8")
+        self.assertLess(transcripcion.index("Archivo: parte1.pdf | Página: 2"),
+                        transcripcion.index("Archivo: parte2.pdf | Página: 1"))
+        registro = self.registros()[0]
+        self.assertEqual(registro["paginas"], 3)
+        self.assertEqual([(a["nombre"], a["estado"], a["paginas"]) for a in registro["archivos"]],
+                         [("parte1.pdf", "procesado", 2), ("parte2.pdf", "procesado", 1)])
+
+    def test_archivo_no_admitido_se_omite_y_sigue(self):
+        r = self.main.generar_retroalimentacion(self.solicitud_varios([
+            ("notas.docx", self.url_moodle() + "/texto"),
+            ("tarea.pdf", self.url_moodle() + "/una_pagina"),
+        ]))
+        self.assertTrue(r["success"])
+        estados = {a["nombre"]: a["estado"] for a in self.registros()[0]["archivos"]}
+        self.assertTrue(estados["notas.docx"].startswith("omitido: Tipo de archivo no admitido"))
+        self.assertEqual(estados["tarea.pdf"], "procesado")
+
+    def test_limite_de_paginas_suma_todos_los_archivos(self):
+        from fastapi import HTTPException
+        self.main.config = dataclasses.replace(self.config_base, max_pages=3)
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.generar_retroalimentacion(self.solicitud_varios([
+                ("a.pdf", self.url_moodle()), ("b.pdf", self.url_moodle()),  # 2 + 2
+            ]))
+        self.assertEqual(ctx.exception.status_code, 422)
+        self.assertIn("4 páginas en total", ctx.exception.detail)
+        self.assertEqual(self.posts(), [])
+
+    def test_solo_texto_en_linea(self):
+        r = self.main.generar_retroalimentacion(self.solicitud_varios([], onlinetext="x = 4 porque 2x = 8"))
+        self.assertTrue(r["success"])
+        self.assertEqual(len(self.posts()), 1, "solo la evaluación: el texto no se transcribe")
+        prompt = self.posts()[0][2]["contents"][0]["parts"][0]["text"]
+        self.assertIn("Texto en línea de la entrega", prompt)
+        self.assertTrue(prompt.endswith("x = 4 porque 2x = 8"))
+        self.assertEqual(self.registros()[0]["texto_en_linea_caracteres"], len("x = 4 porque 2x = 8"))
+
+    def test_archivos_y_texto_en_linea(self):
+        r = self.main.generar_retroalimentacion(self.solicitud_varios(
+            [("tarea.pdf", self.url_moodle() + "/una_pagina")], onlinetext="Comentario del estudiante"))
+        self.assertTrue(r["success"])
+        transcripcion = next(self.salida.rglob("*.txt")).read_text(encoding="utf-8")
+        self.assertLess(transcripcion.index("Archivo: tarea.pdf"), transcripcion.index("Texto en línea"))
+
+    def test_solo_archivos_no_admitidos(self):
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.generar_retroalimentacion(self.solicitud_varios([("notas.docx", self.url_moodle() + "/texto")]))
+        self.assertEqual(ctx.exception.status_code, 422)
+        self.assertIn("notas.docx", ctx.exception.detail)
+        self.assertEqual(self.posts(), [])
 
 
 class PruebasHTTP(unittest.TestCase):

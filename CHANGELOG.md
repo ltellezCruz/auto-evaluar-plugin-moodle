@@ -8,6 +8,38 @@ Cada versión indica:
 
 Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
 
+## 0.3.0 (plugin `2026110400`)
+
+### Cambios
+
+- **Entregas completas:** el servicio procesa **todos los archivos** de la entrega, en orden, y el **texto en línea**.
+  - Los archivos que no son PDF ni imagen (por ejemplo un `.docx`) se omiten y quedan anotados en el `.json`, sin cancelar la evaluación de los demás.
+  - `MAX_PAGES` cuenta las páginas de toda la entrega.
+  - Una entrega con solo texto en línea también se evalúa.
+- **Seguridad (XSS):**
+  - El texto generado por la IA ya no se muestra sin limpiar. Antes, el resumen de la tabla de calificaciones y del estado de la entrega del estudiante insertaba el HTML tal cual, y un estudiante podía inducir a la IA a devolver código.
+  - Ahora el resumen dice solo «Retroalimentación con IA generada el …» como texto, y la vista completa pasa por `format_text`.
+  - Los mensajes del botón se insertan como texto (`textContent`).
+- **Corrección:** una respuesta del servicio con `success: false` (por ejemplo, una página que no se pudo transcribir) se mostraba como «Retroalimentación generada» sin texto. Ahora se muestra como error.
+- **Idiomas:** todos los textos están en `lang/` (incluidos los del JavaScript y los errores); `lang/en` queda en inglés y hay un `lang/es` nuevo, en español.
+- **Proveedor «Prueba (sin IA)»** (`mock_adapter`): responde con un texto fijo sin llamar al servicio, para probar el plugin sin gastar cuota.
+- **Pantalla de calificación:** ya no se repite la retroalimentación junto al botón (está en «Comentarios de retroalimentación»); solo se indica cuándo se generó.
+- **Texto en línea:** se convierte con `html_to_text`, que conserva los párrafos.
+
+### Compatibilidad
+
+| Plugin | Servicio | Resultado |
+|---|---|---|
+| 0.3.0 | 0.3.0 | ✅ |
+| 0.3.0 | 0.2.0 | ✅ Funciona, pero el servicio evalúa solo el primer archivo |
+| 0.2.0 | 0.3.0 | ✅ Funciona; el plugin 0.2.0 ya envía todos los archivos y el texto. Sin las correcciones de seguridad del plugin |
+
+### Al actualizar desde 0.2.0
+
+1. **Plugin:** Notificaciones (o `--upgrade`). No hay pasos de base de datos ni ajustes nuevos. Purga las cachés para que se carguen los idiomas y la plantilla.
+2. **Servicio:** reemplaza `app/` y reinicia. No hay variables nuevas.
+3. **Recomendado:** actualiza el plugin cuanto antes por la corrección de seguridad.
+
 ## 0.2.0 (plugin `2026110301`)
 
 ### Cambios

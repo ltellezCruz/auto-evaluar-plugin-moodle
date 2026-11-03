@@ -33,20 +33,17 @@ class assign_feedback_aiocr extends assign_feedback_plugin {
      * Debe devolver true si agregó algo al formulario.
      */
     public function get_form_elements_for_user($grade, MoodleQuickForm $mform, stdClass $data, $userid) {
-        global $OUTPUT, $DB, $PAGE;
+        global $OUTPUT, $PAGE;
 
-        $anterior = null;
-        if ($grade && !empty($grade->id)) {
-            $anterior = $DB->get_record('assignfeedback_aiocr', [
-                'grade'  => $grade->id,
-                'status' => 'done',
-            ], '*', IGNORE_MULTIPLE);
-        }
+        // La retroalimentación generada ya se ve (y se edita) en
+        // "Comentarios de retroalimentación"; aquí solo se indica cuándo
+        // se generó por última vez.
+        $ultima = $grade ? $this->ultima_generada($grade) : null;
 
         $datos = [
-            'assignmentid'     => $this->assignment->get_instance()->id,
-            'userid'           => $userid,
-            'existingfeedback' => $anterior ? $anterior->feedbacktext : null,
+            'assignmentid' => $this->assignment->get_instance()->id,
+            'userid'       => $userid,
+            'ultima'       => $ultima ? get_string('generatedon', 'assignfeedback_aiocr', userdate($ultima->timecreated)) : null,
         ];
 
         $html = $OUTPUT->render_from_template('assignfeedback_aiocr/feedback_button', $datos);
@@ -76,7 +73,30 @@ class assign_feedback_aiocr extends assign_feedback_plugin {
         }
         $ya_agregado = true;
 
-        $js = <<<'JS'
+        // Textos en el idioma del usuario (lang/), que el JavaScript recibe ya traducidos.
+        $textos = json_encode([
+            'generada'    => get_string('feedbackgenerated', 'assignfeedback_aiocr'),
+            'desconocido' => get_string('unknownerror', 'assignfeedback_aiocr'),
+            'red'         => get_string('networkerror', 'assignfeedback_aiocr'),
+        ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+        // Todo lo que llega del servidor (errores, detalles) se inserta como
+        // texto (textContent), nunca como HTML: así no se puede inyectar código.
+        $js = 'var AIOCR_TEXTOS = ' . $textos . ";\n" . <<<'JS'
+function aiocrAviso(resultado, tipo, texto, detalle) {
+    resultado.textContent = "";
+    var caja = document.createElement("div");
+    caja.className = "alert alert-" + tipo;
+    caja.textContent = texto;
+    if (detalle) {
+        var pequeno = document.createElement("small");
+        pequeno.textContent = detalle;
+        caja.appendChild(document.createElement("br"));
+        caja.appendChild(pequeno);
+    }
+    resultado.appendChild(caja);
+}
+
 document.addEventListener('click', function(e) {
     var boton = e.target.closest('[data-action="aiocr-generate"]');
     if (!boton) {
@@ -89,7 +109,7 @@ document.addEventListener('click', function(e) {
 
     boton.disabled = true;
     spinner.style.display = "";
-    resultado.innerHTML = "";
+    resultado.textContent = "";
 
     var url = M.cfg.wwwroot + "/lib/ajax/service.php?sesskey=" + M.cfg.sesskey
         + "&info=assignfeedback_aiocr_generate_feedback";
@@ -113,25 +133,21 @@ document.addEventListener('click', function(e) {
         boton.disabled = false;
 
         if (item.error) {
-            var detalle = item.exception.message;
-            if (item.exception.debuginfo) {
-                detalle += '<br><br><small>' + item.exception.debuginfo + '</small>';
-            }
-            resultado.innerHTML = '<div class="alert alert-danger">' + detalle + '</div>';
+            aiocrAviso(resultado, "danger", item.exception.message, item.exception.debuginfo);
             return;
         }
 
         if (item.data.success) {
-            resultado.innerHTML = '<div class="alert alert-success">Retroalimentación generada. Recargando...</div>';
+            aiocrAviso(resultado, "success", AIOCR_TEXTOS.generada);
             setTimeout(function() { window.location.reload(); }, 1200);
         } else {
-            resultado.innerHTML = '<div class="alert alert-danger">' + (item.data.error || "Error desconocido") + '</div>';
+            aiocrAviso(resultado, "danger", item.data.error || AIOCR_TEXTOS.desconocido);
         }
     })
     .catch(function(error) {
         spinner.style.display = "none";
         boton.disabled = false;
-        resultado.innerHTML = '<div class="alert alert-danger">Error de red: ' + error + '</div>';
+        aiocrAviso(resultado, "danger", AIOCR_TEXTOS.red + " " + error);
     });
 });
 JS;
@@ -140,59 +156,55 @@ JS;
     }
 
     /**
-     * Renderiza el botón + resultado en pantallas de SOLO LECTURA
-     * (por ejemplo, el resumen de "Ver todas las entregas").
+     * Último registro generado con éxito para esta calificación, o null.
+     */
+    private function ultima_generada(stdClass $grade): ?stdClass {
+        global $DB;
+        if (empty($grade->id)) {
+            return null;
+        }
+        $registros = $DB->get_records('assignfeedback_aiocr', ['grade' => $grade->id, 'status' => 'done'],
+            'timecreated DESC', '*', 0, 1);
+        return $registros ? reset($registros) : null;
+    }
+
+    /**
+     * Vista completa de solo lectura. El texto viene de un modelo de IA (y
+     * en parte de lo que escribió el estudiante): se limpia con
+     * format_text antes de mostrarlo.
      *
      * @param stdClass $grade El registro de mdl_assign_grades del estudiante actual.
      * @return string HTML a insertar en la página.
      */
     public function view(stdClass $grade) {
-        global $OUTPUT, $DB;
-
-        // Buscamos si ya existe una retroalimentación generada antes,
-        // para mostrarla de una vez (vía DB API: $DB->get_record).
-        $anterior = $DB->get_record('assignfeedback_aiocr', [
-            'grade'  => $grade->id,
-            'status' => 'done',
-        ], '*', IGNORE_MULTIPLE);
-
-        $datos = [
-            'assignmentid'      => $this->assignment->get_instance()->id,
-            'userid'            => $grade->userid,
-            'existingfeedback'  => $anterior ? $anterior->feedbacktext : null,
-        ];
-
-        return $OUTPUT->render_from_template('assignfeedback_aiocr/feedback_button', $datos);
+        $ultima = $this->ultima_generada($grade);
+        if (!$ultima) {
+            return '';
+        }
+        return format_text($ultima->feedbacktext, FORMAT_HTML, ['context' => $this->assignment->get_context()]);
     }
 
     /**
-     * Resumen corto que Moodle muestra en la lista de calificaciones
-     * (tabla "Ver todas las entregas").
+     * Resumen corto (tabla "Ver todas las entregas" y estado de la entrega
+     * del estudiante): solo cuándo se generó, como texto escapado. La
+     * retroalimentación en sí se ve en "Comentarios de retroalimentación".
      */
     public function view_summary(stdClass $grade, &$showviewlink) {
-        global $DB;
         $showviewlink = false;
-
-        $registro = $DB->get_record('assignfeedback_aiocr', [
-            'grade'  => $grade->id,
-            'status' => 'done',
-        ], '*', IGNORE_MULTIPLE);
-
-        if (!$registro) {
+        $ultima = $this->ultima_generada($grade);
+        if (!$ultima) {
             return '-';
         }
-
-        return shorten_text($registro->feedbacktext, 100);
+        return s(get_string('generatedon', 'assignfeedback_aiocr', userdate($ultima->timecreated)));
     }
 
     /**
-     * Declara si este plugin tiene datos guardados para una entrega,
-     * usado por Moodle internamente (por ejemplo, para saber si hay
-     * algo que mostrar/exportar).
+     * Hay algo que mostrar solo si alguna generación terminó bien (los
+     * intentos con error quedan en la tabla para auditoría, pero no se
+     * muestran).
      */
     public function is_empty(stdClass $grade) {
-        global $DB;
-        return !$DB->record_exists('assignfeedback_aiocr', ['grade' => $grade->id]);
+        return $this->ultima_generada($grade) === null;
     }
 
     /**

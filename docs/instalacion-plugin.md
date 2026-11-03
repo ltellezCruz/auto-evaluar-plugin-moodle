@@ -128,7 +128,8 @@ En un servidor institucional, coordina este cambio con el área de TI.
 1. Administración del sitio → Extensiones → Módulos de actividades → Tarea → **Extensiones de retroalimentación** → sección del plugin:
    - **AI provider:** FastAPI.
    - **FastAPI service URL:** la del paso 1, sin barra final.
-   - **FastAPI API key:** la misma clave que `SERVICE_API_KEY` del paso 7.
+   - **Clave del servicio FastAPI** (en inglés: *FastAPI API key*): la misma clave que `SERVICE_API_KEY` del paso 7.
+   - **Proveedor de IA:** «FastAPI (Gemini)». «Prueba (sin IA)» sirve para probar el plugin sin el servicio.
    - **Request timeout:** `240` segundos. Una página tarda unos 35 s. Ten en cuenta que el servidor web también tiene su propio límite: `max_execution_time` de PHP y los timeouts de Apache, Nginx o PHP-FPM. Ese límite debe ser mayor.
 2. En cada tarea donde quieras el botón: Configuración → **Tipos de retroalimentación** → activa el plugin.
 3. Por defecto pueden usar el botón los roles Profesor, Profesor sin permiso de edición y Gestor (capacidad `assignfeedback/aiocr:generate`).
@@ -153,7 +154,7 @@ GEMINI_API_KEY=<tu clave>
 SERVICE_API_KEY=<clave compartida con el plugin>
 ```
 
-Genera `SERVICE_API_KEY` con `python -c "import secrets; print(secrets.token_urlsafe(32))"` y ponla también en «FastAPI API key» del plugin (paso 6).
+Genera `SERVICE_API_KEY` con `python -c "import secrets; print(secrets.token_urlsafe(32))"` y ponla también en «Clave del servicio FastAPI» del plugin (paso 6).
 
 `.env.example` explica el resto de variables: modelo, DPI, carpeta de transcripciones y timeouts.
 
@@ -257,6 +258,6 @@ Qué protege al servicio y qué depende de ti:
 | «Moodle redirigió la descarga» | `MOODLE_PUBLIC_URL` distinto de `$CFG->wwwroot` | Copia exactamente el `wwwroot` |
 | «no está en ALLOWED_FILE_HOSTS» | `MOODLE_URL` no es el `wwwroot` | Pon el `wwwroot` exacto en `MOODLE_URL` (paso 1) |
 | «Ficha (token) no válida» | Token borrado, vencido o mal copiado | Paso 4 |
-| «El servicio FastAPI rechazó la clave» | «FastAPI API key» distinta de `SERVICE_API_KEY` | Pasos 6 y 7 |
+| «El servicio FastAPI rechazó la clave» | «Clave del servicio FastAPI» distinta de `SERVICE_API_KEY` | Pasos 6 y 7 |
 | «El servicio ya está procesando N evaluaciones» | Se alcanzó `MAX_CONCURRENT` | Esperar, o subir `MAX_CONCURRENT` si el servidor lo soporta |
 | El botón no aparece | El plugin no está activado en la tarea, o hay cachés viejas | Paso 6.2 y purgar cachés |

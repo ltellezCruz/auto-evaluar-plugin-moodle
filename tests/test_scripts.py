@@ -159,6 +159,38 @@ class PruebasVersiones(unittest.TestCase):
         self.assertEqual(puntos, sorted(puntos), "los pasos van en orden")
 
 
+class PruebasPlugin(unittest.TestCase):
+    """Revisiones estáticas del código del plugin."""
+
+    def claves(self, idioma):
+        texto = (deploy.ORIGEN / "lang" / idioma / "assignfeedback_aiocr.php").read_text(encoding="utf-8")
+        return set(re.findall(r"\$string\['([^']+)'\]", texto))
+
+    def test_idiomas_con_las_mismas_claves(self):
+        self.assertEqual(self.claves("en"), self.claves("es"))
+
+    def test_textos_usados_existen(self):
+        usados = set()
+        for archivo in deploy.ORIGEN.rglob("*"):
+            if archivo.suffix in (".php", ".mustache"):
+                texto = archivo.read_text(encoding="utf-8")
+                usados |= set(re.findall(r"get_string\(\s*'([^'$]+)'\s*,\s*'assignfeedback_aiocr'", texto))
+                usados |= set(re.findall(r"\{\{#str\}\}\s*([\w:]+)\s*,\s*assignfeedback_aiocr", texto))
+        fabrica = (deploy.ORIGEN / "classes/local/provider_factory.php").read_text(encoding="utf-8")
+        sin_comentarios = "\n".join(l for l in fabrica.splitlines() if not l.strip().startswith("//"))
+        proveedores = re.findall(r"'(\w+_adapter)'\s*=>", sin_comentarios)
+        usados |= {f"provider:{p}" for p in proveedores}
+        self.assertTrue(usados)
+        self.assertEqual(usados - self.claves("en"), set())
+
+    def test_el_javascript_no_inserta_html(self):
+        """Lo que llega del servidor (errores, IA) se inserta como texto."""
+        self.assertNotIn("innerHTML", (deploy.ORIGEN / "locallib.php").read_text(encoding="utf-8"))
+
+    def test_la_plantilla_no_inserta_html_sin_escapar(self):
+        self.assertNotIn("{{{", (deploy.ORIGEN / "templates" / "feedback_button.mustache").read_text(encoding="utf-8"))
+
+
 class PruebasEmpaquetado(unittest.TestCase):
 
     def test_zip_con_aiocr_en_la_raiz(self):

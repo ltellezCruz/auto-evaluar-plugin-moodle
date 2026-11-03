@@ -6,6 +6,12 @@ Conversión de un PDF a imágenes, una por página.
 import os
 
 
+def contar_paginas(ruta_pdf: str) -> int:
+    import pymupdf
+    with pymupdf.open(ruta_pdf) as documento:
+        return len(documento)
+
+
 def convertir_pdf_a_imagenes(ruta_pdf: str, dpi: int, max_paginas: int) -> list[str]:
     """Convierte CADA página del PDF en una imagen PNG separada.
     Rechaza el PDF antes de convertir si tiene más de max_paginas: cada

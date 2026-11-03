@@ -22,6 +22,11 @@ TIPOS_PERMITIDOS = {
 RUTA_ARCHIVOS = "/webservice/pluginfile.php/"
 
 
+class TipoNoAdmitido(ValueError):
+    """El archivo existe y se pudo pedir, pero no es PDF ni imagen: en una
+    entrega con varios archivos se omite en vez de cancelar todo."""
+
+
 def _cabecera_host(config: Config) -> dict:
     """Moodle rechaza (redirige) las peticiones cuyo Host no coincide con
     su wwwroot. Si FastAPI entra por una dirección interna, se presenta
@@ -79,7 +84,7 @@ def validar_host_permitido(config: Config, fileurl: str) -> None:
         raise ValueError(f"La URL no es un archivo de Moodle ({RUTA_ARCHIVOS}); no se envía el token.")
 
 
-def descargar_archivo_moodle(config: Config, fileurl: str, carpeta: str) -> str:
+def descargar_archivo_moodle(config: Config, fileurl: str, carpeta: str, nombre: str = "entrega") -> str:
     """Descarga el archivo a la carpeta y devuelve su ruta. El nombre en
     disco lo decide el tipo de archivo, no la petición."""
     fileurl = a_url_interna(config, fileurl)
@@ -118,7 +123,7 @@ def descargar_archivo_moodle(config: Config, fileurl: str, carpeta: str) -> str:
 
         tipo_base = tipo.split(";")[0].strip().lower()
         if tipo_base not in TIPOS_PERMITIDOS:
-            raise ValueError(f"Tipo de archivo no admitido: {tipo_base or 'desconocido'} (solo PDF, PNG o JPG).")
+            raise TipoNoAdmitido(f"Tipo de archivo no admitido: {tipo_base or 'desconocido'} (solo PDF, PNG o JPG).")
 
         # El archivo nunca se carga completo en memoria y se corta al pasar el límite.
         limite = config.max_file_mb * 1024 * 1024
@@ -126,7 +131,7 @@ def descargar_archivo_moodle(config: Config, fileurl: str, carpeta: str) -> str:
         if declarado > limite:
             raise ValueError(f"El archivo pesa {declarado / 1024**2:.1f} MB; el máximo es {config.max_file_mb} MB.")
 
-        ruta_destino = os.path.join(carpeta, "entrega" + TIPOS_PERMITIDOS[tipo_base])
+        ruta_destino = os.path.join(carpeta, nombre + TIPOS_PERMITIDOS[tipo_base])
         recibidos = 0
         with open(ruta_destino, "wb") as f:
             for bloque in respuesta.iter_content(chunk_size=64 * 1024):

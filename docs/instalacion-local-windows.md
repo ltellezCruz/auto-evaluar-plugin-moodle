@@ -126,7 +126,7 @@ Si prefieres no usar la terminal: ejecuta el comando sin `--php --upgrade --purg
    |---|---|
    | AI provider | FastAPI (servicio local/personalizado) |
    | FastAPI service URL | `http://127.0.0.1:8000` (sin barra final) |
-   | FastAPI API key | La misma clave que pondrás en `SERVICE_API_KEY` en el paso 8 |
+   | Clave del servicio FastAPI (en inglés: *FastAPI API key*) | La misma clave que pondrás en `SERVICE_API_KEY` en el paso 8 |
    | Request timeout (seconds) | `240` (valor por defecto). Una página ya tarda unos 35 s; no lo subas por encima de 300, que es el límite de PHP y Apache del paquete |
 
 2. **En cada tarea:** abre la tarea → Configuración → **Tipos de retroalimentación** → marca el plugin junto a «Comentarios de retroalimentación» → Guardar.
@@ -157,7 +157,7 @@ SERVICE_API_KEY=<clave del servicio>
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Pon la misma en «FastAPI API key» del plugin (paso 7.1).
+Pon la misma en «Clave del servicio FastAPI» del plugin (paso 7.1).
 
 `.env` no se sube al repositorio. No pegues estas claves en chats, correos ni documentos.
 
@@ -171,11 +171,14 @@ Cuando veas `Application startup complete`, abre <http://127.0.0.1:8000/>: debe 
 
 ## 9. Prueba de punta a punta
 
+> Para probar el botón, los permisos y el guardado **sin FastAPI ni Gemini**, elige «Prueba (sin IA)» en **Proveedor de IA** (paso 7.1). El botón guarda un texto fijo que lista los archivos recibidos. Vuelve a «FastAPI (Gemini)» para evaluar de verdad.
+
 1. En Moodle: curso → tarea → **Ver todas las entregas** → **Calificar** en la fila del estudiante.
 2. Debajo de «Calificación» aparece el botón **Auto Evaluar**. Dale clic una sola vez.
 3. Aparece «Procesando con IA...». Al terminar, sale «Retroalimentación generada. Recargando...».
 4. El texto queda en **Comentarios de retroalimentación** y la calificación numérica no cambia.
-5. La transcripción queda guardada en `<REPO>\data\transcripciones\tarea_<id>\usuario_<id>_<fecha>.txt`, junto a un `.json` con las páginas, los tokens consumidos y la duración.
+5. Si la entrega tiene varios archivos, se procesan todos en orden, junto con el texto en línea si lo hay. Los archivos que no son PDF ni imagen se omiten.
+6. La transcripción queda guardada en `<REPO>\data\transcripciones\tarea_<id>\usuario_<id>_<fecha>.txt`, junto a un `.json` con las páginas, los tokens consumidos y la duración.
 
 ## 10. Uso diario
 
@@ -229,7 +232,7 @@ Para volver al modo local: cierra ngrok, vuelve a poner `$CFG->wwwroot = 'http:/
 | «no está en ALLOWED_FILE_HOSTS» | La dirección del sitio no coincide con `MOODLE_URL` | Con ngrok, define `MOODLE_PUBLIC_URL` (paso 11) |
 | «Moodle redirigió la descarga» | `MOODLE_PUBLIC_URL` no coincide con `$CFG->wwwroot` | Usa exactamente la misma dirección |
 | «Moodle no entregó el archivo: Ficha (token) no válida» | Token borrado o mal copiado | Paso 4 |
-| «El servicio FastAPI rechazó la clave» | «FastAPI API key» distinta de `SERVICE_API_KEY` | Pasos 7.1 y 8 |
+| «El servicio FastAPI rechazó la clave» | «Clave del servicio FastAPI» distinta de `SERVICE_API_KEY` | Pasos 7.1 y 8 |
 | «El servicio ya está procesando N evaluaciones» | Se alcanzó `MAX_CONCURRENT` | Esperar, o subir `MAX_CONCURRENT` en `.env` |
 | «El PDF tiene N páginas; el máximo es…» o «El archivo supera el máximo…» | Límites `MAX_PAGES` / `MAX_FILE_MB` | Subirlos en `.env` si es necesario |
 | La retroalimentación habla de «una página de inicio de sesión» | Token inválido o vencido: se descargó el login en vez del PDF | Crea otro token (paso 4) |

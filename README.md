@@ -89,11 +89,11 @@ Requiere Python 3.10 o superior.
    .venv/bin/pip install -r requirements.txt          # Linux
    ```
 
-2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN`, `GEMINI_API_KEY` y `SERVICE_API_KEY` (clave que también va en «FastAPI API key» del plugin). Si la dirección oficial de Moodle (`wwwroot`) es distinta de `MOODLE_URL` (ngrok, Docker), definir `MOODLE_PUBLIC_URL`. El servicio solo envía el token a los hosts permitidos (`ALLOWED_FILE_HOSTS`).
+2. Copiar `.env.example` como `.env` y completar al menos `MOODLE_TOKEN`, `GEMINI_API_KEY` y `SERVICE_API_KEY` (clave que también va en «Clave del servicio FastAPI» del plugin). Si la dirección oficial de Moodle (`wwwroot`) es distinta de `MOODLE_URL` (ngrok, Docker), definir `MOODLE_PUBLIC_URL`. El servicio solo envía el token a los hosts permitidos (`ALLOWED_FILE_HOSTS`).
 
 3. Arrancar con `run.bat` (Windows) o `./run.sh` (Linux). Escucha en `http://127.0.0.1:8000`; `http://127.0.0.1:8000/` debe responder «Servidor FastAPI corriendo correctamente».
 
-Cada evaluación queda en `data/transcripciones/tarea_<id>/usuario_<id>_<fecha>.txt` más un `.json` con páginas, tokens por llamada, duración y resultado (fuera de git). Se borran a los `TRANSCRIPTIONS_DAYS` días. Los prompts se pueden editar sin tocar el código; basta con reiniciar el servicio.
+Se procesan todos los archivos de la entrega (PDF, PNG o JPG, en orden) y el texto en línea; los demás tipos se omiten y quedan anotados. Cada evaluación queda en `data/transcripciones/tarea_<id>/usuario_<id>_<fecha>.txt` más un `.json` con páginas, tokens por llamada, duración y resultado (fuera de git). Se borran a los `TRANSCRIPTIONS_DAYS` días. Los prompts se pueden editar sin tocar el código; basta con reiniciar el servicio.
 
 Seguridad y límites (todo en `.env`):
 - Solo el plugin puede usar el servicio: cada solicitud lleva `SERVICE_API_KEY` en la cabecera `X-Aiocr-Key` (si no, 401).

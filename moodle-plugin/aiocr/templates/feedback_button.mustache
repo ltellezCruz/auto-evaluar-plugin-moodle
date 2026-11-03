@@ -5,13 +5,22 @@
 
     Botón que aparece en la pantalla de calificación de una entrega.
     Moodle renderiza esta plantilla del lado del servidor (locallib.php
-    la llama con $OUTPUT->render_from_template), y el JavaScript de locallib.php la "engancha"
-    del lado del cliente usando los atributos data-*.
+    la llama con $OUTPUT->render_from_template), y el JavaScript de
+    locallib.php la "engancha" del lado del cliente usando los atributos
+    data-*. La retroalimentación generada no se repite aquí: queda en
+    "Comentarios de retroalimentación".
 
     Contexto esperado:
     * assignmentid int
     * userid int
-    * existingfeedback string (opcional, si ya se generó antes)
+    * ultima string (opcional): "generada el ..." de la última vez
+
+    Example context (json):
+    {
+        "assignmentid": 1,
+        "userid": 2,
+        "ultima": "AI feedback generated on Monday, 3 November 2026, 10:15 AM"
+    }
 }}
 <div class="assignfeedback_aiocr" data-region="aiocr-feedback-region">
 
@@ -23,14 +32,14 @@
         {{#str}} requestfeedback, assignfeedback_aiocr {{/str}}
     </button>
 
+    {{#ultima}}
+        <small class="text-muted ml-2">{{ultima}}</small>
+    {{/ultima}}
+
     <div class="aiocr-spinner" data-region="aiocr-spinner" style="display:none;">
         {{#str}} processing, assignfeedback_aiocr {{/str}}
     </div>
 
-    <div class="aiocr-result" data-region="aiocr-result">
-        {{#existingfeedback}}
-            <div class="alert alert-info">{{existingfeedback}}</div>
-        {{/existingfeedback}}
-    </div>
+    <div class="aiocr-result" data-region="aiocr-result"></div>
 
 </div>

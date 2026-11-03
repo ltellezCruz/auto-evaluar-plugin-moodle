@@ -22,9 +22,8 @@ class provider_factory {
     /** @var array Mapa nombre-corto => nombre de clase completo. */
     private const PROVIDERS = [
         'fastapi_adapter' => \assignfeedback_aiocr\local\fastapi_adapter::class,
+        'mock_adapter'    => \assignfeedback_aiocr\local\mock_adapter::class,
         // 'openai_adapter' => \assignfeedback_aiocr\local\openai_adapter::class,
-        // 'gemini_adapter' => \assignfeedback_aiocr\local\gemini_adapter::class,
-        // 'mock_adapter'   => \assignfeedback_aiocr\local\mock_adapter::class,
     ];
 
     /**
@@ -59,7 +58,7 @@ class provider_factory {
     public static function get_available_providers(): array {
         $opciones = [];
         foreach (array_keys(self::PROVIDERS) as $key) {
-            $opciones[$key] = get_string("provider:{$key}", 'assignfeedback_aiocr') ?? $key;
+            $opciones[$key] = get_string("provider:{$key}", 'assignfeedback_aiocr');
         }
         return $opciones;
     }

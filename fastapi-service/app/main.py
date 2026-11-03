@@ -5,9 +5,11 @@ Evaluar" del plugin assignfeedback_aiocr) y Gemini.
 
 Pipeline del endpoint /ia/generar-retroalimentacion:
     1. Comprueba la clave del servicio (cabecera X-Aiocr-Key).
-    2. Descarga el archivo de la entrega (solo desde ALLOWED_FILE_HOSTS,
-       solo /webservice/pluginfile.php, PDF o imagen, hasta MAX_FILE_MB).
-    3. Lo convierte a imagen, UNA por cada página (hasta MAX_PAGES).
+    2. Descarga TODOS los archivos de la entrega, en orden (solo desde
+       ALLOWED_FILE_HOSTS, solo /webservice/pluginfile.php, hasta
+       MAX_FILE_MB cada uno). Los que no son PDF ni imagen se omiten.
+    3. Los convierte a imagen, UNA por cada página (hasta MAX_PAGES en
+       total). El texto en línea de la entrega se agrega tal cual.
     4. PASO 1 de Gemini, por cada página: transcribe (prompts/extraer.txt).
     5. Si alguna página falló la transcripción, se detiene aquí y se
        informa el error (no se genera una evaluación incompleta).
@@ -36,8 +38,8 @@ from pydantic import BaseModel, Field
 from . import __version__
 from .config import cargar_config, leer_prompt
 from .gemini_client import consultar_gemini
-from .moodle_client import descargar_archivo_moodle, llamar_moodle
-from .pdf import convertir_pdf_a_imagenes
+from .moodle_client import TipoNoAdmitido, descargar_archivo_moodle, llamar_moodle
+from .pdf import contar_paginas, convertir_pdf_a_imagenes
 from .transcripciones import guardar_evaluacion, limpiar_antiguas
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -116,11 +118,11 @@ def generar_retroalimentacion(
     Endpoint que llama el plugin de Moodle cuando el profesor le da clic
     a "Auto Evaluar" sobre la entrega de UN estudiante específico.
     """
-    if not solicitud.files:
+    if not solicitud.files and not (solicitud.onlinetext or "").strip():
         return {
             "feedback_text": "",
             "success": False,
-            "error": "La entrega no tiene archivos adjuntos para procesar.",
+            "error": "La entrega no tiene archivos ni texto en línea para procesar.",
         }
 
     if not _cupos.acquire(blocking=False):
@@ -140,7 +142,7 @@ def generar_retroalimentacion(
 
 def _evaluar(solicitud: SolicitudRetroalimentacion, version_plugin: Optional[str] = None) -> dict:
     inicio = time.monotonic()
-    primer_archivo = solicitud.files[0]
+    texto_en_linea = (solicitud.onlinetext or "").strip()
     registro = {
         "fecha": datetime.now().isoformat(timespec="seconds"),
         # Con qué versiones se produjo esta evaluación (útil al comparar
@@ -149,7 +151,8 @@ def _evaluar(solicitud: SolicitudRetroalimentacion, version_plugin: Optional[str
         "version_plugin": version_plugin,
         "assignmentid": solicitud.assignmentid,
         "userid": solicitud.userid,
-        "archivo": primer_archivo.filename,
+        "archivos": [{"nombre": a.filename, "estado": "pendiente"} for a in solicitud.files],
+        "texto_en_linea_caracteres": len(texto_en_linea),
         "modelo": config.gemini_model,
         "dpi": config.pdf_dpi,
         "paginas": 0,
@@ -160,45 +163,72 @@ def _evaluar(solicitud: SolicitudRetroalimentacion, version_plugin: Optional[str
     transcripcion_completa = ""
 
     try:
-        # El archivo y sus imágenes se borran al terminar la solicitud.
+        # Los archivos y sus imágenes se borran al terminar la solicitud.
         with tempfile.TemporaryDirectory(prefix="aiocr_") as carpeta_temporal:
 
-            # --- Descargar el archivo real de la entrega ---
-            try:
-                ruta = descargar_archivo_moodle(config, primer_archivo.fileurl, carpeta_temporal)
-            except Exception as e:
-                raise HTTPException(status_code=502, detail=f"No se pudo descargar el archivo desde Moodle: {e}")
-
-            # --- Convertir TODAS las páginas a imagen ---
-            try:
-                if ruta.endswith(".pdf"):
-                    imagenes = convertir_pdf_a_imagenes(ruta, config.pdf_dpi, config.max_pages)
-                else:
-                    imagenes = [ruta]
-            except ValueError as e:
-                raise HTTPException(status_code=422, detail=str(e))
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error al convertir el PDF a imagen: {e}")
-            registro["paginas"] = len(imagenes)
-
-            # --- PASO 1: transcribir cada página con Gemini ---
-            transcripciones = []
-            for numero_pagina, imagen in enumerate(imagenes, start=1):
-                pagina = {"archivo": primer_archivo.filename, "pagina": numero_pagina, "texto": "", "error": None}
+            # --- Descargar todos los archivos de la entrega ---
+            descargados = []  # (nombre original, ruta local, info del registro)
+            for n, (archivo, info) in enumerate(zip(solicitud.files, registro["archivos"]), start=1):
                 try:
-                    texto, consumo = consultar_gemini(config, PROMPT_EXTRAER, imagen)
-                    registro["llamadas"].append({"paso": "transcripcion", "pagina": numero_pagina, **consumo})
-                    if not texto.strip():
-                        raise ValueError("La transcripción está vacía.")
-                    pagina["texto"] = texto
+                    ruta = descargar_archivo_moodle(config, archivo.fileurl, carpeta_temporal, f"archivo_{n}")
+                except TipoNoAdmitido as e:
+                    info["estado"] = f"omitido: {e}"
+                    continue
                 except Exception as e:
-                    pagina["error"] = str(e)
-                transcripciones.append(pagina)
+                    raise HTTPException(status_code=502,
+                                        detail=f"No se pudo descargar «{archivo.filename}» desde Moodle: {e}")
+                descargados.append((archivo.filename, ruta, info))
 
-        transcripcion_completa = "\n\n".join(
-            f"Archivo: {r['archivo']} | Página: {r['pagina']}\n{r['texto']}"
-            for r in transcripciones if r["texto"]
-        )
+            if not descargados and not texto_en_linea:
+                omitidos = "; ".join(f"{i['nombre']} ({i['estado']})" for i in registro["archivos"])
+                raise HTTPException(status_code=422,
+                                    detail=f"La entrega no tiene archivos PDF, PNG o JPG ni texto en línea. {omitidos}")
+
+            # --- Contar páginas antes de convertir: el límite es por entrega ---
+            try:
+                paginas_por_archivo = [contar_paginas(r) if r.endswith(".pdf") else 1 for _, r, _ in descargados]
+            except Exception as e:
+                raise HTTPException(status_code=422, detail=f"No se pudo abrir un PDF de la entrega: {e}")
+            total = sum(paginas_por_archivo)
+            if total > config.max_pages:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"La entrega tiene {total} páginas en total; el máximo es {config.max_pages} (MAX_PAGES).",
+                )
+            registro["paginas"] = total
+
+            # --- PASO 1: transcribir cada página de cada archivo con Gemini ---
+            transcripciones = []
+            for (nombre, ruta, info), paginas in zip(descargados, paginas_por_archivo):
+                try:
+                    imagenes = convertir_pdf_a_imagenes(ruta, config.pdf_dpi, paginas) if ruta.endswith(".pdf") else [ruta]
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Error al convertir «{nombre}» a imagen: {e}")
+                info["estado"] = "procesado"
+                info["paginas"] = len(imagenes)
+
+                for numero_pagina, imagen in enumerate(imagenes, start=1):
+                    pagina = {"archivo": nombre, "pagina": numero_pagina, "texto": "", "error": None}
+                    try:
+                        texto, consumo = consultar_gemini(config, PROMPT_EXTRAER, imagen)
+                        registro["llamadas"].append(
+                            {"paso": "transcripcion", "archivo": nombre, "pagina": numero_pagina, **consumo})
+                        if not texto.strip():
+                            raise ValueError("La transcripción está vacía.")
+                        pagina["texto"] = texto
+                    except Exception as e:
+                        pagina["error"] = str(e)
+                    transcripciones.append(pagina)
+
+        bloques = [f"Archivo: {r['archivo']} | Página: {r['pagina']}\n{r['texto']}" for r in transcripciones if r["texto"]]
+        if texto_en_linea:
+            # Ya es texto: no pasa por la transcripción. Se marca como tal para
+            # que la evaluación sepa que no trae el enunciado del profesor.
+            bloques.append(
+                "Archivo: Texto en línea de la entrega (escrito por el estudiante en Moodle; "
+                f"no incluye el enunciado del profesor) | Página: 1\n{texto_en_linea}"
+            )
+        transcripcion_completa = "\n\n".join(bloques)
 
         # Si alguna página falló, no seguimos: no se publica una evaluación
         # incompleta.

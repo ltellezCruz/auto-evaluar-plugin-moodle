@@ -29,7 +29,7 @@ class fastapi_adapter implements ai_provider_interface {
                 'success'      => false,
                 'feedbacktext' => '',
                 'raw'          => null,
-                'error'        => 'No se ha configurado la URL del servicio FastAPI en Administración del sitio.',
+                'error'        => get_string('error:nourl', 'assignfeedback_aiocr'),
             ];
         }
 
@@ -71,7 +71,8 @@ class fastapi_adapter implements ai_provider_interface {
                 'success'      => false,
                 'feedbacktext' => '',
                 'raw'          => null,
-                'error'        => "No se pudo conectar con FastAPI ({$endpoint}): " . $curl->error,
+                'error'        => get_string('error:connect', 'assignfeedback_aiocr',
+                    (object) ['url' => $endpoint, 'error' => $curl->error]),
             ];
         }
 
@@ -82,15 +83,15 @@ class fastapi_adapter implements ai_provider_interface {
 
         if ($httpcode !== 200 || !is_array($decodificado)) {
             if ($httpcode === 401) {
-                $mensaje = 'El servicio FastAPI rechazó la clave. Revisa que "FastAPI API key" en la '
-                    . 'configuración del plugin sea igual a SERVICE_API_KEY en el .env de FastAPI.';
+                $mensaje = get_string('error:keyrejected', 'assignfeedback_aiocr');
             } else if (is_array($decodificado) && isset($decodificado['detail']) && is_string($decodificado['detail'])) {
                 // Errores controlados del servicio (archivo muy grande, demasiadas páginas, ocupado...).
-                $mensaje = "FastAPI ({$httpcode}): " . $decodificado['detail'];
+                $mensaje = get_string('error:service', 'assignfeedback_aiocr',
+                    (object) ['code' => $httpcode, 'detail' => $decodificado['detail']]);
             } else {
-                $mensaje = "FastAPI respondió con estado {$httpcode}. "
-                    . "URL intentada: {$endpoint}. "
-                    . "Cuerpo de la respuesta: " . substr((string) $respuesta, 0, 300);
+                $mensaje = get_string('error:status', 'assignfeedback_aiocr', (object) [
+                    'code' => $httpcode, 'url' => $endpoint, 'body' => substr((string) $respuesta, 0, 300),
+                ]);
             }
             return [
                 'success'      => false,
@@ -100,9 +101,18 @@ class fastapi_adapter implements ai_provider_interface {
             ];
         }
 
-        // Se espera que tu endpoint FastAPI devuelva algo como:
-        // {"feedback_text": "...", "score": 85, ...cualquier otro dato...}
-        $feedbacktext = $decodificado['feedback_text'] ?? '';
+        // El servicio responde {"success": bool, "feedback_text": "...", "error": "..."}.
+        // Un 200 con success=false (p. ej. no se pudo transcribir una página)
+        // es un error, no una retroalimentación vacía.
+        $feedbacktext = trim((string) ($decodificado['feedback_text'] ?? ''));
+        if (empty($decodificado['success']) || $feedbacktext === '') {
+            return [
+                'success'      => false,
+                'feedbacktext' => '',
+                'raw'          => $decodificado,
+                'error'        => (string) ($decodificado['error'] ?? get_string('error:empty', 'assignfeedback_aiocr')),
+            ];
+        }
 
         return [
             'success'      => true,
