@@ -8,9 +8,9 @@ Cada versión indica:
 
 Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
 
-## Sin publicar (rama `feature-simulacion`): todo el proyecto en PHP
+## 0.4.0 (plugin `2026110900`): todo el proyecto en PHP
 
-Todavía no tiene número de versión: el plugin sigue en `2026110400` y el servicio informa `0.3.0`. Antes de publicarla hay que subir los dos (ver [Para quien publica una versión nueva](docs/actualizacion.md#para-quien-publica-una-versión-nueva)).
+El código del plugin no cambia: solo sube su número de versión para ir a la par del servicio. La última versión con el servicio en Python es la 0.3.0 (tag `v0.3.0`).
 
 ### Cambios
 
@@ -42,12 +42,14 @@ Todavía no tiene número de versión: el plugin sigue en `2026110400` y el serv
 
 | Plugin | Servicio | Resultado |
 |---|---|---|
-| 0.3.0 | PHP (esta rama) | ✅ Mismo contrato que el servicio 0.3.0 en Python (pruebas automáticas, y contra el Moodle local y Gemini reales en modo `directo`: texto en línea, PDF de 1 y 2 páginas, entrega mixta, límites de páginas y de tamaño) |
-| 0.2.0 | PHP (esta rama) | ✅ Igual que con el servicio 0.3.0 |
+| 0.4.0 | 0.4.0 (PHP) | ✅ Pruebas automáticas, y contra el Moodle local y Gemini reales en modo `directo`: texto en línea, PDF de 1 y 2 páginas, entrega mixta, límites de páginas y de tamaño) |
+| 0.3.0 | 0.4.0 (PHP) | ✅ Mismo contrato que el servicio 0.3.0 en Python |
+| 0.4.0 | 0.3.0 (Python) | ✅ Mismo contrato |
+| 0.2.0 | 0.4.0 (PHP) | ✅ Igual que con el servicio 0.3.0 |
 
 ### Al actualizar desde 0.3.0 (Python)
 
-1. **Plugin:** nada.
+1. **Plugin:** despliega la 0.4.0 y ejecuta la actualización de Moodle (no cambia ajustes ni tablas; solo el número de versión).
 2. **Servicio:** copia `fastapi-service/.env` a `php-service/.env` y agrega `PHP_BIN` si hace falta. Imagick y Ghostscript son opcionales ([guía local, paso 8](docs/instalacion-local-windows.md#8-servicio-php)): sin ellos, los PDF van enteros a Gemini. Arranca con `php-service/run.bat` (o `run.sh`) en lugar del de `fastapi-service/`.
 3. **Docker:** `docker compose up -d --build --remove-orphans` (quita el contenedor `fastapi`).
 4. **Mediciones:** si comparas CSV viejos con nuevos, renombra las columnas `python_*` como `servicio_*`. Los tokens por página solo son comparables con los de Python en `PDF_MODO=imagen`.

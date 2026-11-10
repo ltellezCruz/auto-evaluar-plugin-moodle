@@ -1,6 +1,6 @@
 # Modalidad 2: todo el entorno en Docker
 
-> Con la versión en Python (rama `main`) se probó en Windows 11 con Docker Desktop (Docker 29.9, Compose 5.6): Moodle 4.5.15+ se instaló y configuró solo, y una entrega en PDF se evaluó de punta a punta. **La imagen del servicio PHP (rama `feature-simulacion`) todavía no se ha construido ni probado en Docker.** No se ha probado en Linux ni en macOS.
+> Con la versión en Python (0.3.0, tag `v0.3.0`) se probó en Windows 11 con Docker Desktop (Docker 29.9, Compose 5.6): Moodle 4.5.15+ se instaló y configuró solo, y una entrega en PDF se evaluó de punta a punta. **La imagen del servicio PHP (0.4.0) todavía no se ha construido ni probado en Docker.** No se ha probado en Linux ni en macOS.
 
 Levanta cuatro contenedores con un solo comando. Moodle queda instalado y configurado para el plugin, sin pasos manuales en la administración.
 

@@ -37,7 +37,7 @@ final class VersionesTest extends TestCase
         $this->assertSame($ordenados, $puntos, 'los pasos van en orden');
     }
 
-    /** Todo el proyecto quedó en PHP (rama feature-simulacion). */
+    /** Todo el proyecto quedó en PHP (desde la 0.4.0). */
     public function testNoQuedaCodigoPython(): void
     {
         $python = [];

@@ -4,7 +4,7 @@ Plugin de retroalimentación para la actividad Tarea de Moodle 4.5 (`assignfeedb
 
 Trabajo de grado. Estado: prototipo (madurez ALPHA). Licencia: GPLv3 (ver `LICENSE`), como exige Moodle para sus plugins.
 
-> **Rama `feature-simulacion`:** todo el proyecto está en PHP. El servicio FastAPI (Python) se reemplazó por `php-service/`, y los scripts, las pruebas y el monitor también pasaron a PHP. El plugin no cambió: el servicio nuevo responde igual que el anterior. La versión en Python sigue en la rama `main`.
+> **Desde la 0.4.0 todo el proyecto está en PHP.** El servicio FastAPI (Python) se reemplazó por `php-service/`, y los scripts, las pruebas y el monitor también pasaron a PHP. El plugin no cambió: el servicio nuevo responde igual que el anterior. La última versión en Python es el tag `v0.3.0`.
 
 ## Instalación
 

@@ -11,7 +11,7 @@ Esta guía es para quien ya tiene un Moodle funcionando (en Windows, Linux o mac
         └──────────── descarga del PDF con un token de Moodle ─────────────┘
 ```
 
-**Qué está probado:** Moodle 4.5.13+ y 4.5.15+. El zip se instaló con el mismo mecanismo de «Instalar complementos» y pasó el validador de Moodle. El flujo completo funcionó con la versión en Python del servicio (rama `main`) en el mismo equipo (Windows) y en Docker. El servicio PHP pasa las mismas pruebas automáticas, con Moodle y Gemini simulados.
+**Qué está probado:** Moodle 4.5.13+ y 4.5.15+. El zip se instaló con el mismo mecanismo de «Instalar complementos» y pasó el validador de Moodle. El flujo completo funcionó con la versión en Python del servicio (0.3.0) en el mismo equipo (Windows) y en Docker. El servicio PHP (0.4.0) pasa las mismas pruebas automáticas y se probó en Windows contra el Moodle local y Gemini reales (`PDF_MODO=directo`).
 
 **Qué no está probado:** la conversión de PDF con Imagick en Windows, macOS, servidores Linux de producción, Moodle 5.x y un token de un usuario que no sea administrador.
 
