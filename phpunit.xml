@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Pruebas del repositorio. Desde la raíz: "composer install" y luego
+  "vendor/bin/phpunit" (todas). Para una sola suite, la opción testsuite
+  con "scripts" (despliegue, empaquetado, versiones, plugin y monitor) o
+  "servicio" (servicio PHP con Moodle y Gemini simulados). Ver README.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="scripts">
+            <directory>tests</directory>
+        </testsuite>
+        <testsuite name="servicio">
+            <directory>php-service/tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

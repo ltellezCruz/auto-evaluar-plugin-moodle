@@ -1,0 +1,5 @@
+.env
+vendor/
+tests/
+run.bat
+run.sh

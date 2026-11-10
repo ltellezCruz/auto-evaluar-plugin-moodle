@@ -12,6 +12,9 @@ textos_extraidos/
 
 # --- Artefactos generados ---
 dist/
+vendor/
+.phpunit.cache/
+# Restos de la versión en Python (rama main)
 __pycache__/
 *.py[cod]
 .venv/

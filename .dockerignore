@@ -6,6 +6,8 @@ dist/
 docs/
 scripts/
 tools/
+tests/
+php-service/
+vendor/
 fastapi-service/
 **/.env
-**/__pycache__

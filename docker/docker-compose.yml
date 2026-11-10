@@ -2,7 +2,7 @@
 #
 #   docker compose up -d --build      (desde esta carpeta, con .env creado)
 #
-#   navegador ──▶ localhost:${MOODLE_PORT} ──▶ moodle ──▶ fastapi ──▶ Gemini
+#   navegador ──▶ localhost:${MOODLE_PORT} ──▶ moodle ──▶ servicio ──▶ Gemini
 #                                                │  ▲          │
 #                                                ▼  └──────────┘ descarga el PDF por http://moodle
 #                                                db
@@ -57,7 +57,7 @@ services:
       MOODLE_ADMIN_EMAIL: ${MOODLE_ADMIN_EMAIL:-admin@example.com}
       MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-Auto Evaluar}
       MOODLE_SITE_SHORTNAME: ${MOODLE_SITE_SHORTNAME:-autoevaluar}
-      AIOCR_FASTAPI_URL: http://fastapi:8000
+      AIOCR_FASTAPI_URL: http://servicio:8000
       AIOCR_FASTAPI_TIMEOUT: ${AIOCR_FASTAPI_TIMEOUT:-240}
       AIOCR_SERVICE_KEY: ${AIOCR_SERVICE_KEY:?Define AIOCR_SERVICE_KEY en docker/.env}
       AIOCR_TOKEN_FILE: /compartido/moodle_token
@@ -65,7 +65,7 @@ services:
       - moodledata:/var/www/moodledata
       - compartido:/compartido
     healthcheck:
-      # Sano cuando Apache responde y el token para FastAPI ya existe.
+      # Sano cuando Apache responde y el token para el servicio ya existe.
       test: ["CMD-SHELL", "test -s /compartido/moodle_token && curl -fsS -o /dev/null http://localhost/login/index.php"]
       interval: 10s
       retries: 6
@@ -85,9 +85,10 @@ services:
       - moodledata:/var/www/moodledata
     command: ["bash", "-c", "while true; do runuser -u www-data -- php /var/www/html/admin/cli/cron.php > /dev/null; sleep 60; done"]
 
-  fastapi:
+  servicio:
+    # Servicio PHP de Auto Evaluar (php-service/): Apache + PHP + Imagick + Ghostscript.
     build:
-      context: ../fastapi-service
+      context: ../php-service
     restart: unless-stopped
     logging: *logging
     depends_on:
@@ -100,6 +101,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Define GEMINI_API_KEY en docker/.env}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-120}
+      PDF_MODO: ${PDF_MODO:-auto}
       PDF_DPI: ${PDF_DPI:-200}
       SERVICE_API_KEY: ${AIOCR_SERVICE_KEY}
       MAX_FILE_MB: ${MAX_FILE_MB:-20}
@@ -111,7 +113,7 @@ services:
       - ../data/transcripciones:/data/transcripciones
     # Solo para diagnóstico desde este equipo (http://127.0.0.1:8000/).
     ports:
-      - "127.0.0.1:${FASTAPI_PORT:-8000}:8000"
+      - "127.0.0.1:${SERVICIO_PORT:-${FASTAPI_PORT:-8000}}:8000"
 
 volumes:
   dbdata:

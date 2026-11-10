@@ -2,4 +2,5 @@
 *.bat text eol=crlf
 *.sh text eol=lf
 *.php text eol=lf
-*.py text eol=lf
+# Los prompts se leen tal cual: siempre con finales de línea \n.
+*.txt text eol=lf

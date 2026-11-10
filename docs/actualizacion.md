@@ -4,7 +4,7 @@ Esta guía es para quien ya tiene instalada una versión y quiere pasar a una nu
 
 ## Cómo se versiona
 
-- El **plugin** y el **servicio FastAPI** comparten número de versión (por ejemplo `0.2.0`) y se publican juntos. **Actualiza siempre los dos.**
+- El **plugin** y el **servicio** (`php-service/`; antes, el servicio FastAPI) comparten número de versión (por ejemplo `0.2.0`) y se publican juntos. **Actualiza siempre los dos.**
 - El plugin tiene además un número interno que Moodle usa para saber si debe actualizarse: `$plugin->version`, por ejemplo `2026110301`.
 - Cada evaluación guarda en su `.json` con qué versión del servicio (`version_servicio`) y del plugin (`version_plugin`) se hizo. Así se pueden comparar resultados entre versiones.
 
@@ -48,18 +48,15 @@ El script de despliegue respalda solo el **código** del plugin en `dist/backups
 2. Instala el plugin y actualiza Moodle:
 
    ```bat
-   python scripts\deploy_plugin.py --moodle-dir "<CARPETA_MOODLE>\server\moodle" --php "<CARPETA_MOODLE>\server\php\php.exe" --upgrade --purge-caches
+   "<CARPETA_MOODLE>\server\php\php.exe" scripts\deploy_plugin.php --moodle-dir "<CARPETA_MOODLE>\server\moodle" --upgrade --purge-caches
    ```
 
    El script muestra `Versión instalada X -> nueva Y`. Si la versión del repositorio es **anterior** a la instalada, se detiene sin tocar nada.
 3. Si hay ajustes nuevos, Moodle los registra. Revísalos en Administración del sitio → Extensiones → Módulos de actividades → Tarea → Extensiones de retroalimentación → Auto Evaluar.
-4. Compara `fastapi-service\.env` con `.env.example` y agrega las variables nuevas que indique el CHANGELOG. Si falta una obligatoria, el servicio no arranca y te dice cuál es.
-5. Actualiza las dependencias y reinicia el servicio (Ctrl+C y `run.bat`):
+4. Compara `php-service\.env` con `.env.example` y agrega las variables nuevas que indique el CHANGELOG. Si falta una obligatoria, `run.bat` no enciende el servicio y te dice cuál es.
+5. Reinicia el servicio (Ctrl+C y `run.bat`) para que vuelva a revisar la configuración. El servicio PHP no tiene dependencias que instalar.
 
-   ```bat
-   cd fastapi-service
-   .venv\Scripts\pip install -r requirements.txt
-   ```
+> **Si vienes de la versión en Python** (`fastapi-service\`): copia tu `fastapi-service\.env` a `php-service\.env`, y agrega `PHP_BIN` con la ruta de `php.exe` ([guía local, paso 8](instalacion-local-windows.md#8-servicio-php)). Imagick y Ghostscript son opcionales: sin ellos los PDF se envían enteros a Gemini. Desde ese momento se usa `php-service\run.bat`. El plugin no cambia.
 
 ### Modalidad 2: Docker
 
@@ -70,18 +67,18 @@ Desde `docker/`:
 3. Reconstruye y reinicia:
 
    ```bash
-   docker compose up -d --build
+   docker compose up -d --build --remove-orphans
    ```
 
-   Al arrancar, el contenedor `moodle` ejecuta la actualización de Moodle (`db/upgrade.php`) y vuelve a aplicar la configuración del plugin, incluida la clave. No hay pasos manuales en Moodle.
+   `--remove-orphans` quita el contenedor `fastapi` si vienes de la versión en Python. Al arrancar, el contenedor `moodle` ejecuta la actualización de Moodle (`db/upgrade.php`) y vuelve a aplicar la configuración del plugin, incluida la clave. No hay pasos manuales en Moodle.
 4. Comprueba con `docker compose logs moodle` (busca `assignfeedback_aiocr`) y con `bash docker/pruebas/prueba_e2e.sh`.
 
 Los cursos, los usuarios y las entregas viven en los volúmenes `dbdata` y `moodledata`, así que no se pierden al reconstruir. Solo `docker compose down -v` los borra.
 
 ### Modalidad 3: Moodle existente
 
-1. **Plugin:** genera el zip nuevo (`python scripts/package_plugin.py`) y súbelo en **Instalar complementos**. Moodle detecta que es una actualización. Otra opción es reemplazar la carpeta `<moodle>/mod/assign/feedback/aiocr` (opción B de la [guía](instalacion-plugin.md)). Después, **Notificaciones** → «Actualizar base de datos Moodle ahora».
-2. **Servicio:** reemplaza `app/`, `prompts/` y `requirements.txt` en el servidor. **No reemplaces `.env`.** Instala las dependencias (`.venv/bin/pip install -r requirements.txt`), agrega las variables nuevas al `.env` y reinicia (`sudo systemctl restart aiocr-fastapi`).
+1. **Plugin:** genera el zip nuevo (`php scripts/package_plugin.php`) y súbelo en **Instalar complementos**. Moodle detecta que es una actualización. Otra opción es reemplazar la carpeta `<moodle>/mod/assign/feedback/aiocr` (opción B de la [guía](instalacion-plugin.md)). Después, **Notificaciones** → «Actualizar base de datos Moodle ahora».
+2. **Servicio:** reemplaza `src/`, `public/`, `bin/` y `prompts/` en el servidor. **No reemplaces `.env`.** Agrega las variables nuevas al `.env`, ejecuta `php bin/comprobar.php` y reinicia (`sudo systemctl restart aiocr-servicio`, o recarga PHP-FPM). Si vienes de la versión en Python, instala el servicio PHP como en el [paso 7 de la guía](instalacion-plugin.md#7-instala-el-servicio-php) reutilizando tu `.env`, y después apaga el servicio FastAPI.
 
 ### En qué orden
 
@@ -97,7 +94,7 @@ Mientras actualizas, el botón puede mostrar un error, por ejemplo «El servicio
 
 ## Volver a la versión anterior
 
-**Moodle no permite instalar una versión anterior de un plugin encima de una más nueva.** Si se intenta, bloquea **todo el sitio** con «Cannot downgrade assignfeedback_aiocr from X to Y» hasta que se repone el código nuevo. Por eso `deploy_plugin.py` se niega a copiar código más antiguo que el instalado.
+**Moodle no permite instalar una versión anterior de un plugin encima de una más nueva.** Si se intenta, bloquea **todo el sitio** con «Cannot downgrade assignfeedback_aiocr from X to Y» hasta que se repone el código nuevo. Por eso `deploy_plugin.php` se niega a copiar código más antiguo que el instalado.
 
 Para volver de verdad:
 
@@ -105,7 +102,7 @@ Para volver de verdad:
 2. Restaura el código del plugin, desde `dist/backups/aiocr_<fecha>` o desde la versión anterior del repositorio (`git checkout v0.1.0`):
 
    ```bat
-   python scripts\deploy_plugin.py --moodle-dir "<moodle>" --permitir-retroceso --purge-caches
+   php scripts\deploy_plugin.php --moodle-dir "<moodle>" --permitir-retroceso --purge-caches
    ```
 
 3. Vuelve a la versión anterior del servicio y a su `.env` respaldado, y reinícialo.
@@ -114,10 +111,10 @@ Si solo hay un problema con una versión nueva, casi siempre es más simple corr
 
 ## Para quien publica una versión nueva
 
-1. Sube `$plugin->version` (formato `AAAAMMDDXX`) y `$plugin->release` en `moodle-plugin/aiocr/version.php`, y `__version__` en `fastapi-service/app/__init__.py` al mismo `release`.
+1. Sube `$plugin->version` (formato `AAAAMMDDXX`) y `$plugin->release` en `moodle-plugin/aiocr/version.php`, y `Version::VERSION` en `php-service/src/Version.php` al mismo `release`.
 2. Si cambian ajustes guardados o tablas, agrega un paso al **final** de `db/upgrade.php` con su `upgrade_plugin_savepoint`. **No modifiques pasos anteriores.** Si cambian tablas, actualiza también `db/install.xml`.
 3. Escribe la entrada en `CHANGELOG.md`: cambios, tabla de compatibilidad y pasos de «Al actualizar».
 4. Si agregas variables al `.env`, ponlas en `.env.example` (y en `docker/.env.example` y `docker-compose.yml` si aplica) con un valor por defecto siempre que se pueda.
-5. Corre las pruebas (`tests/` y `fastapi-service/tests/`). Verifican, entre otras cosas, que las versiones coincidan, que el CHANGELOG mencione la versión y que `db/upgrade.php` no apunte a una versión mayor que la del plugin.
+5. Corre las pruebas (`composer install` y `vendor/bin/phpunit`). Verifican, entre otras cosas, que las versiones coincidan, que el CHANGELOG mencione la versión y que `db/upgrade.php` no apunte a una versión mayor que la del plugin.
 6. Prueba la actualización desde la versión anterior, no solo una instalación nueva.
-7. Genera el zip (`scripts/package_plugin.py`) y marca la versión en git: `git tag v0.2.0`.
+7. Genera el zip (`php scripts/package_plugin.php`) y marca la versión en git: `git tag v0.2.0`.

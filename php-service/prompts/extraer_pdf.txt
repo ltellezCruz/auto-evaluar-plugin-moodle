@@ -1,0 +1,12 @@
+The attached file is a PDF document with {paginas} page(s), sent whole
+instead of one image per page.
+
+Apply ALL the instructions below to EACH page separately, as if each page
+were the "attached assessment image". Wherever the instructions say
+"image", read "page". Do not merge content from different pages.
+
+Start the extraction of every page with a line containing exactly:
+=== PAGINA N ===
+where N is the page number (1, 2, 3...). Include every page, in order,
+even if it is blank: for a blank page write "Página sin contenido visible".
+

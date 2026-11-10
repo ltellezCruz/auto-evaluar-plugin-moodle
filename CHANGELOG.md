@@ -1,12 +1,56 @@
 # Registro de cambios
 
-El plugin (`$plugin->release` en `moodle-plugin/aiocr/version.php`) y el servicio FastAPI (`__version__` en `fastapi-service/app/__init__.py`) **comparten número de versión** y se actualizan juntos. Las pruebas verifican que coincidan.
+El plugin (`$plugin->release` en `moodle-plugin/aiocr/version.php`) y el servicio (`Version::VERSION` en `php-service/src/Version.php`; hasta la 0.3.0, `__version__` en `fastapi-service/app/__init__.py`) **comparten número de versión** y se actualizan juntos. Las pruebas verifican que coincidan.
 
 Cada versión indica:
 - **Compatibilidad:** con qué versión del otro componente funciona.
 - **Al actualizar:** qué tiene que hacer quien ya tenía instalada la versión anterior.
 
 Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
+
+## Sin publicar (rama `feature-simulacion`): todo el proyecto en PHP
+
+Todavía no tiene número de versión: el plugin sigue en `2026110400` y el servicio informa `0.3.0`. Antes de publicarla hay que subir los dos (ver [Para quien publica una versión nueva](docs/actualizacion.md#para-quien-publica-una-versión-nueva)).
+
+### Cambios
+
+- **El servicio FastAPI (Python) se reemplazó por `php-service/`.** Hace lo mismo y responde igual: las mismas rutas, la cabecera `X-Aiocr-Key`, el cuerpo y las respuestas (`detail` en los errores), las variables del `.env`, los prompts, los límites y el registro en `data/transcripciones/`.
+  - HTTP: `public/index.php`, servido con `php -S` (`run.bat` y `run.sh`) o con Apache (Docker).
+  - Descargas y Gemini: extensión `curl`.
+  - **PDF: nuevo `PDF_MODO`.** Con `directo`, cada PDF se envía entero a Gemini en una sola llamada (sin convertirlo a imágenes) y la transcripción se separa por páginas con las marcas `=== PAGINA N ===` que pide `prompts/extraer_pdf.txt`; las páginas se cuentan en PHP (`PdfPaginas`) para aplicar `MAX_PAGES`. Con `imagen`, una imagen por página como antes, con la extensión `imagick` + Ghostscript (antes, PyMuPDF). `auto` (por defecto) usa `imagen` si está Imagick y si no, `directo`.
+  - El registro `.json` anota `modo_pdf`; en modo directo `dpi` es `null` y la llamada de transcripción lleva el rango de páginas (`"1-2"`).
+  - `MAX_CONCURRENT` usa candados de archivo. **En Windows, `php -S` atiende una solicitud a la vez**: las evaluaciones simultáneas esperan su turno en vez de recibir 503.
+  - `bin/comprobar.php` revisa la configuración antes de encender y dice qué modo de PDF quedó activo (y avisa si `PDF_MODO=imagen` no puede convertir).
+  - El `.env` y los prompts se leen en cada solicitud: cambiarlos ya no exige reiniciar.
+  - `/` responde «Servidor PHP corriendo correctamente». `/docs` (con `ENABLE_DOCS=true`) es una descripción en JSON, no Swagger.
+  - Si Moodle responde con un código de error al descargar, el mensaje ya no incluye la URL (antes llevaba el token).
+- **Scripts:** `scripts/deploy_plugin.php` y `scripts/package_plugin.php` reemplazan a los `.py`, con las mismas opciones. `--php` toma por defecto el PHP que ejecuta el script.
+- **Pruebas:** PHPUnit (`composer install` y `vendor/bin/phpunit`) en lugar de unittest. Las de Moodle y Gemini simulados usan `php -S`.
+- **Monitor:** `tools/monitor/monitor.php` reemplaza a `monitor.py` (sin psutil: contadores de Windows por PowerShell y `/proc` en Linux; macOS no). Las columnas `python_*` pasan a `servicio_*`.
+- **Docker:** el contenedor `fastapi` pasa a llamarse `servicio` (imagen `php:8.2-apache` con Imagick y Ghostscript). La variable del puerto es `SERVICIO_PORT` (sigue sirviendo `FASTAPI_PORT`).
+- **El plugin no cambia.** Sus ajustes conservan los nombres «FastAPI» (`fastapi_url`, `fastapi_apikey`, `fastapi_timeout`) para no tocar la base de datos.
+
+### Nuevas variables del `.env` (opcionales)
+
+| Variable | Para qué |
+|---|---|
+| `PHP_BIN` | Ruta de `php.exe` que usa `run.bat` / `run.sh` si `php` no está en el PATH |
+| `TIMEZONE` | Zona horaria de las fechas del registro (por defecto `America/Bogota`) |
+| `PDF_MODO` | `auto` (por defecto), `directo` o `imagen`: cómo se envían los PDF a Gemini |
+
+### Compatibilidad
+
+| Plugin | Servicio | Resultado |
+|---|---|---|
+| 0.3.0 | PHP (esta rama) | ✅ Mismo contrato que el servicio 0.3.0 en Python (pruebas automáticas, y contra el Moodle local y Gemini reales en modo `directo`: texto en línea, PDF de 1 y 2 páginas, entrega mixta, límites de páginas y de tamaño) |
+| 0.2.0 | PHP (esta rama) | ✅ Igual que con el servicio 0.3.0 |
+
+### Al actualizar desde 0.3.0 (Python)
+
+1. **Plugin:** nada.
+2. **Servicio:** copia `fastapi-service/.env` a `php-service/.env` y agrega `PHP_BIN` si hace falta. Imagick y Ghostscript son opcionales ([guía local, paso 8](docs/instalacion-local-windows.md#8-servicio-php)): sin ellos, los PDF van enteros a Gemini. Arranca con `php-service/run.bat` (o `run.sh`) en lugar del de `fastapi-service/`.
+3. **Docker:** `docker compose up -d --build --remove-orphans` (quita el contenedor `fastapi`).
+4. **Mediciones:** si comparas CSV viejos con nuevos, renombra las columnas `python_*` como `servicio_*`. Los tokens por página solo son comparables con los de Python en `PDF_MODO=imagen`.
 
 ## 0.3.0 (plugin `2026110400`)
 
