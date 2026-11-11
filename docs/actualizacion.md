@@ -109,6 +109,10 @@ Para volver de verdad:
 
 Si solo hay un problema con una versión nueva, casi siempre es más simple corregir hacia adelante (una versión nueva) que volver atrás.
 
+## De 0.4.0 a 0.5.0: pasar al modo autónomo
+
+Actualiza el plugin como siempre (arriba). El proveedor no cambia solo. Para dejar de usar el servicio: Administración del sitio → Extensiones → Tarea → Extensiones de retroalimentación → Auto Evaluar → Proveedor de IA «Gemini (directo, sin servicio externo)» y la clave de Gemini. Prueba una entrega y después apaga el servicio. Ver [instalacion-autonoma.md](instalacion-autonoma.md).
+
 ## Para quien publica una versión nueva
 
 1. Sube `$plugin->version` (formato `AAAAMMDDXX`) y `$plugin->release` en `moodle-plugin/aiocr/version.php`, y `Version::VERSION` en `php-service/src/Version.php` al mismo `release`.

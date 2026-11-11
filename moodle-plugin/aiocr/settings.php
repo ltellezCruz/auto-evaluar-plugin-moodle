@@ -3,9 +3,13 @@
 //
 // Moodle incluye automáticamente ESTE archivo (por convención de nombre
 // y ubicación) al construir la página de administración de plugins de
-// retroalimentación de tareas. Por eso la configuración global del
-// plugin (URL de FastAPI, proveedor de IA) debe vivir aquí, y NO dentro
-// de locallib.php como se había puesto antes.
+// retroalimentación de tareas.
+//
+// Dos grupos de ajustes:
+//   - Gemini (proveedor autónomo, por defecto): todo ocurre dentro de Moodle.
+//   - Servicio externo (opcional): el servicio php-service/ de versiones
+//     anteriores. Los nombres fastapi_* se conservan para no tocar la base
+//     de datos de los sitios que ya lo usan.
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -16,8 +20,77 @@ if ($ADMIN->fulltree) {
         'assignfeedback_aiocr/provider',
         get_string('settings:provider', 'assignfeedback_aiocr'),
         get_string('settings:provider_help', 'assignfeedback_aiocr'),
-        'fastapi_adapter',
+        'gemini_adapter',
         \assignfeedback_aiocr\local\provider_factory::get_available_providers()
+    ));
+
+    // --- Gemini directo (proveedor autónomo) ---
+    $settings->add(new admin_setting_heading(
+        'assignfeedback_aiocr/heading_gemini',
+        get_string('settings:heading_gemini', 'assignfeedback_aiocr'),
+        get_string('settings:heading_gemini_desc', 'assignfeedback_aiocr')
+    ));
+
+    $settings->add(new admin_setting_configpasswordunmask(
+        'assignfeedback_aiocr/gemini_apikey',
+        get_string('settings:gemini_apikey', 'assignfeedback_aiocr'),
+        get_string('settings:gemini_apikey_help', 'assignfeedback_aiocr'),
+        ''
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/gemini_model',
+        get_string('settings:gemini_model', 'assignfeedback_aiocr'),
+        get_string('settings:gemini_model_help', 'assignfeedback_aiocr'),
+        \assignfeedback_aiocr\local\gemini_adapter::MODELO_POR_DEFECTO,
+        '/^[a-zA-Z0-9._-]+$/'
+    ));
+
+    // Por llamada. Una evaluación hace (archivos + 1) llamadas.
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/gemini_timeout',
+        get_string('settings:gemini_timeout', 'assignfeedback_aiocr'),
+        get_string('settings:gemini_timeout_help', 'assignfeedback_aiocr'),
+        120,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/max_file_mb',
+        get_string('settings:max_file_mb', 'assignfeedback_aiocr'),
+        get_string('settings:max_file_mb_help', 'assignfeedback_aiocr'),
+        20,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/max_pages',
+        get_string('settings:max_pages', 'assignfeedback_aiocr'),
+        get_string('settings:max_pages_help', 'assignfeedback_aiocr'),
+        20,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/max_concurrent',
+        get_string('settings:max_concurrent', 'assignfeedback_aiocr'),
+        get_string('settings:max_concurrent_help', 'assignfeedback_aiocr'),
+        3,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'assignfeedback_aiocr/save_transcription',
+        get_string('settings:save_transcription', 'assignfeedback_aiocr'),
+        get_string('settings:save_transcription_help', 'assignfeedback_aiocr'),
+        1
+    ));
+
+    // --- Servicio externo (opcional) ---
+    $settings->add(new admin_setting_heading(
+        'assignfeedback_aiocr/heading_service',
+        get_string('settings:heading_service', 'assignfeedback_aiocr'),
+        get_string('settings:heading_service_desc', 'assignfeedback_aiocr')
     ));
 
     $settings->add(new admin_setting_configtext(
@@ -28,7 +101,7 @@ if ($ADMIN->fulltree) {
         PARAM_URL
     ));
 
-    // Misma clave que SERVICE_API_KEY en el .env de FastAPI.
+    // Misma clave que SERVICE_API_KEY en el .env del servicio.
     $settings->add(new admin_setting_configpasswordunmask(
         'assignfeedback_aiocr/fastapi_apikey',
         get_string('settings:fastapi_apikey', 'assignfeedback_aiocr'),
@@ -36,9 +109,6 @@ if ($ADMIN->fulltree) {
         ''
     ));
 
-    // Una evaluación hace (páginas + 1) llamadas a Gemini: 1 página ya
-    // tarda ~35 s. 240 s queda por debajo del límite habitual de PHP y
-    // Apache (300 s en el paquete de Windows).
     $settings->add(new admin_setting_configtext(
         'assignfeedback_aiocr/fastapi_timeout',
         get_string('settings:fastapi_timeout', 'assignfeedback_aiocr'),

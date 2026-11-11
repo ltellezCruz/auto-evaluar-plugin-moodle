@@ -21,6 +21,7 @@ class provider_factory {
 
     /** @var array Mapa nombre-corto => nombre de clase completo. */
     private const PROVIDERS = [
+        'gemini_adapter'  => \assignfeedback_aiocr\local\gemini_adapter::class,
         'fastapi_adapter' => \assignfeedback_aiocr\local\fastapi_adapter::class,
         'mock_adapter'    => \assignfeedback_aiocr\local\mock_adapter::class,
         // 'openai_adapter' => \assignfeedback_aiocr\local\openai_adapter::class,
@@ -34,7 +35,7 @@ class provider_factory {
      */
     public static function get_provider(): ai_provider_interface {
         $configurado = get_config('assignfeedback_aiocr', 'provider');
-        $configurado = $configurado ?: 'fastapi_adapter'; // valor por defecto
+        $configurado = $configurado ?: 'gemini_adapter'; // valor por defecto: autónomo, sin servicio
 
         if (!isset(self::PROVIDERS[$configurado])) {
             throw new \moodle_exception(

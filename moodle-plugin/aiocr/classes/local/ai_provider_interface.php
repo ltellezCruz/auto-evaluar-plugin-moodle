@@ -15,10 +15,11 @@ defined('MOODLE_INTERNAL') || die();
  * sin tocar ni una línea del resto del plugin.
  *
  * Ejemplo de implementaciones posibles, todas intercambiables:
- *   - fastapi_adapter.php   -> el servicio FastAPI (Gemini)
- *   - openai_adapter.php    -> API de OpenAI directamente
- *   - gemini_adapter.php    -> API de Gemini directamente
+ *   - gemini_adapter.php    -> API de Gemini directamente, sin servicio
+ *                              intermedio (por defecto desde la 0.5.0)
+ *   - fastapi_adapter.php   -> servicio externo php-service/ (antes FastAPI)
  *   - mock_adapter.php      -> respuesta falsa fija, útil para pruebas
+ *   - openai_adapter.php    -> (posible) API de OpenAI directamente
  */
 interface ai_provider_interface {
 
@@ -30,7 +31,8 @@ interface ai_provider_interface {
      *     'assignmentid' => int,
      *     'userid'       => int,
      *     'username'     => string|null,   // usuario del estudiante (nombra la transcripción)
-     *     'files'        => [ ['filename' => string, 'fileurl' => string, 'mimetype' => string], ... ],
+     *     'files'        => [ ['filename' => string, 'fileurl' => string, 'mimetype' => string,
+     *                          'fileid' => int], ... ],   // fileid: id en la File API de Moodle
      *     'onlinetext'   => string|null,   // si la entrega es texto en línea en vez de archivo
      *   ]
      *
@@ -41,6 +43,8 @@ interface ai_provider_interface {
      *     'feedbacktext' => string,        // listo para mostrar/guardar
      *     'raw'          => array|null,     // respuesta cruda del proveedor, para auditoría
      *     'error'        => string|null,    // mensaje de error si success=false
+     *     'transcription'=> string|null,    // opcional: transcripción de la entrega
+     *     'tokens'       => int,            // opcional: tokens de IA consumidos
      *   ]
      */
     public function generate_feedback(array $context): array;

@@ -36,9 +36,18 @@ class provider implements
                 'rawresponse'  => 'privacy:metadata:assignfeedback_aiocr:rawresponse',
                 'usermodified' => 'privacy:metadata:assignfeedback_aiocr:usermodified',
                 'timecreated'  => 'privacy:metadata:assignfeedback_aiocr:timecreated',
+                'transcription' => 'privacy:metadata:assignfeedback_aiocr:transcription',
             ],
             'privacy:metadata:assignfeedback_aiocr'
         );
+
+        // Datos que salen de Moodle, según el proveedor elegido.
+        $collection->add_external_location_link('gemini', [
+            'submission' => 'privacy:metadata:gemini:submission',
+        ], 'privacy:metadata:gemini');
+        $collection->add_external_location_link('service', [
+            'submission' => 'privacy:metadata:service:submission',
+        ], 'privacy:metadata:service');
 
         return $collection;
     }

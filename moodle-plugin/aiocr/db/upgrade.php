@@ -19,6 +19,7 @@ defined('MOODLE_INTERNAL') || die();
  * @return bool
  */
 function xmldb_assignfeedback_aiocr_upgrade($oldversion) {
+    global $DB;
 
     if ($oldversion < 2026110301) {
         // 0.1.0 → 0.2.0. El timeout por defecto era 30 s y una evaluación
@@ -35,6 +36,29 @@ function xmldb_assignfeedback_aiocr_upgrade($oldversion) {
         // la muestra como ajuste nuevo al terminar la actualización.
 
         upgrade_plugin_savepoint(true, 2026110301, 'assignfeedback', 'aiocr');
+    }
+
+    if ($oldversion < 2026111000) {
+        // 0.4.0 → 0.5.0. Proveedor autónomo (gemini_adapter): la
+        // transcripción y los tokens de cada solicitud se guardan en la
+        // tabla del plugin en lugar de archivos del servicio externo.
+        $dbman = $DB->get_manager();
+        $tabla = new xmldb_table('assignfeedback_aiocr');
+        $campos = [
+            new xmldb_field('transcription', XMLDB_TYPE_TEXT, null, null, null, null, null, 'errormessage'),
+            new xmldb_field('tokens', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'transcription'),
+        ];
+        foreach ($campos as $campo) {
+            if (!$dbman->field_exists($tabla, $campo)) {
+                $dbman->add_field($tabla, $campo);
+            }
+        }
+
+        // Los sitios que ya usaban el servicio externo lo conservan: el
+        // proveedor solo cambia si el administrador lo elige. Los ajustes
+        // nuevos (clave de Gemini, límites) aparecen al terminar.
+
+        upgrade_plugin_savepoint(true, 2026111000, 'assignfeedback', 'aiocr');
     }
 
     return true;

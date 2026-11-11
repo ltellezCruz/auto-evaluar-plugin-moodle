@@ -8,6 +8,36 @@ Cada versión indica:
 
 Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
 
+## 0.5.0 (plugin `2026111000`): plugin autónomo, sin servicio intermedio
+
+### Cambios
+
+- **Nuevo proveedor «Gemini (directo, sin servicio externo)»** (`gemini_adapter`). El plugin hace todo dentro de Moodle:
+  - lee los archivos de la entrega con la File API (sin token de servicios web ni descargas por HTTP);
+  - envía cada PDF entero a Gemini (como `PDF_MODO=directo` del servicio) y cada imagen aparte, separa la transcripción por páginas y luego evalúa;
+  - aplica los mismos límites: tamaño por archivo, páginas por entrega y evaluaciones simultáneas (candados de Moodle);
+  - llama a Gemini con la clase `\curl` de Moodle, que respeta el proxy del sitio.
+- La lógica viene del servicio PHP (`Servicio`, `GeminiClient`, `PdfPaginas` y los prompts) y vive en `classes/local/gemini/`. No depende de Moodle y tiene pruebas propias (`tests/PluginGeminiTest.php`). Los prompts están en `classes/local/gemini/prompts.php` (en PHP para que el servidor web no los sirva como archivos) y las pruebas verifican que sean iguales a los de `php-service/prompts/`.
+- **Base de datos:** la tabla `assignfeedback_aiocr` gana los campos `transcription` y `tokens`. Con el proveedor autónomo se guardan ahí la transcripción y, en `rawresponse`, los metadatos (archivos, páginas, llamadas, tokens, duración, modelo, versión), en lugar de los archivos `data/transcripciones/` del servicio.
+- **Ajustes nuevos:** clave y modelo de Gemini, tiempo de espera por llamada, tamaño máximo, páginas máximas, evaluaciones simultáneas y «Guardar transcripciones». Los del servicio quedan en la sección «Servicio externo (opcional)», con nombres visibles sin «FastAPI».
+- **Privacidad:** se declaran los datos que salen de Moodle (Gemini o el servicio externo) y el campo de transcripción.
+- **El servicio `php-service/` sigue disponible** como proveedor «Servicio externo (php-service)» y Docker lo sigue usando. Su versión sube a 0.5.0 sin cambios de código.
+- Guía nueva: [docs/instalacion-autonoma.md](docs/instalacion-autonoma.md).
+
+### Compatibilidad
+
+| Plugin | Servicio | Resultado |
+|---|---|---|
+| 0.5.0 (Gemini directo) | ninguno | ✅ Probado en el Moodle local con Gemini real (texto en línea, PDF de 1 y 2 páginas, entrega mixta, PDF escaneado real, límites de páginas, tamaño y tipo) con el servicio apagado |
+| 0.5.0 (Servicio externo) | 0.4.0 o 0.5.0 | ✅ Mismo contrato (el plugin envía además `fileid`, que el servicio ignora) |
+| 0.4.0 | 0.5.0 | ✅ Mismo contrato |
+
+### Al actualizar desde 0.4.0
+
+1. **Plugin:** despliégalo y ejecuta la actualización de Moodle. Agrega los campos `transcription` y `tokens` (el historial se conserva) y los ajustes nuevos.
+2. **El proveedor no cambia solo:** si usabas el servicio, sigues con él. Para pasar al modo autónomo: Proveedor de IA → «Gemini (directo, sin servicio externo)» y pon la clave de Gemini. Después puedes apagar el servicio; el token de servicios web y los cambios de «Seguridad HTTP» ya no hacen falta (puedes revertirlos).
+3. **Instalaciones nuevas:** el proveedor por defecto es el autónomo.
+
 ## 0.4.0 (plugin `2026110900`): todo el proyecto en PHP
 
 El código del plugin no cambia: solo sube su número de versión para ir a la par del servicio. La última versión con el servicio en Python es la 0.3.0 (tag `v0.3.0`).

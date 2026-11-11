@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/assign/feedback/aiocr/db" VERSION="20260917" COMMENT="assignfeedback_aiocr">
+<XMLDB PATH="mod/assign/feedback/aiocr/db" VERSION="20261110" COMMENT="assignfeedback_aiocr">
   <TABLES>
     <TABLE NAME="assignfeedback_aiocr" COMMENT="Historial de solicitudes de retroalimentación generadas por IA/OCR, una fila por intento de generación (permite reintentos y trazabilidad).">
       <FIELDS>
@@ -13,6 +13,8 @@
         <FIELD NAME="feedbacktext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Texto de retroalimentación ya listo para mostrar/guardar"/>
         <FIELD NAME="rawresponse" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Respuesta cruda (JSON) del proveedor de IA, para depuración/auditoría"/>
         <FIELD NAME="errormessage" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="transcription" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Transcripción de la entrega que se envió a evaluar (proveedor gemini_adapter)"/>
+        <FIELD NAME="tokens" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Tokens de IA consumidos por la solicitud"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>

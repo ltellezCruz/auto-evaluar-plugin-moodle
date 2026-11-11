@@ -1,18 +1,21 @@
 # Auto Evaluar
 
-Plugin de retroalimentación para la actividad Tarea de Moodle 4.5 (`assignfeedback_aiocr`). Envía la entrega de un estudiante a un servicio en PHP, que transcribe el trabajo manuscrito y lo evalúa con Gemini. El resultado se guarda como comentario de retroalimentación.
+Plugin de retroalimentación para la actividad Tarea de Moodle 4.5 (`assignfeedback_aiocr`). Transcribe con Gemini el trabajo de un estudiante (PDF, imágenes o texto en línea), lo evalúa y guarda el resultado como comentario de retroalimentación.
 
 Trabajo de grado. Estado: prototipo (madurez ALPHA). Licencia: GPLv3 (ver `LICENSE`), como exige Moodle para sus plugins.
 
+> **Desde la 0.5.0 el plugin es autónomo:** con el proveedor «Gemini (directo)» hace todo dentro de Moodle y basta con instalar el zip y poner la clave de Gemini ([guía](docs/instalacion-autonoma.md)). El servicio `php-service/` queda como proveedor opcional.
+>
 > **Desde la 0.4.0 todo el proyecto está en PHP.** El servicio FastAPI (Python) se reemplazó por `php-service/`, y los scripts, las pruebas y el monitor también pasaron a PHP. El plugin no cambió: el servicio nuevo responde igual que el anterior. La última versión en Python es el tag `v0.3.0`.
 
 ## Instalación
 
 | Modalidad | Para quién | Guía |
 |---|---|---|
+| **Rápida: solo el plugin** | Cualquier Moodle 4.5+: el plugin hace todo (Gemini directo), sin servicio | [docs/instalacion-autonoma.md](docs/instalacion-autonoma.md) |
 | 1. Moodle local en Windows | Probar todo en un equipo con el paquete oficial de Moodle | [docs/instalacion-local-windows.md](docs/instalacion-local-windows.md) |
 | 2. Docker | Levantar Moodle, base de datos y el servicio en contenedores | [docs/instalacion-docker.md](docs/instalacion-docker.md) |
-| 3. Moodle existente | Instalar el plugin en un Moodle propio (Windows, Linux o macOS) | [docs/instalacion-plugin.md](docs/instalacion-plugin.md) |
+| 3. Moodle existente | Instalar el plugin y el servicio externo en un Moodle propio (Windows, Linux o macOS) | [docs/instalacion-plugin.md](docs/instalacion-plugin.md) |
 
 **¿Ya tienes una versión instalada?** Mira el [CHANGELOG](CHANGELOG.md) y la guía de [actualización](docs/actualizacion.md). El plugin y el servicio comparten número de versión y se actualizan juntos.
 
@@ -21,7 +24,7 @@ Trabajo de grado. Estado: prototipo (madurez ALPHA). Licencia: GPLv3 (ver `LICEN
 ```
 auto-evaluar/
 ├── moodle-plugin/aiocr/   código fuente del plugin (única fuente de verdad)
-├── php-service/           servicio que habla con Moodle y Gemini (con sus pruebas en tests/)
+├── php-service/           servicio externo opcional (proveedor «Servicio externo»), con sus pruebas
 ├── docker/                entorno completo en contenedores y prueba de punta a punta
 ├── scripts/               despliegue y empaquetado del plugin
 ├── tests/                 pruebas de los scripts, las versiones, el plugin y el monitor

@@ -20,6 +20,8 @@ Levanta cuatro contenedores con un solo comando. Moodle queda instalado y config
 | `cron` | Ejecuta el cron de Moodle cada minuto (restauraciones, tareas programadas) |
 | `servicio` | El servicio PHP de `php-service/`: Apache + PHP 8.2 + Imagick + Ghostscript |
 
+> Docker levanta también el servicio externo (`servicio`) y configura el plugin para usarlo. Para probar el modo autónomo (0.5.0), en Moodle cambia el proveedor a «Gemini (directo)» y pon la clave de Gemini; el contenedor `servicio` deja de usarse.
+
 ## 1. Requisitos
 
 - **Docker Desktop** (Windows o macOS) o Docker Engine con el plugin compose (Linux). En Windows necesita WSL 2.

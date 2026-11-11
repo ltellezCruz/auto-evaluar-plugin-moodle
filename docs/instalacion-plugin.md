@@ -1,5 +1,7 @@
 # Modalidad 3: instalar el plugin en un Moodle existente
 
+> **Desde la 0.5.0 hay una forma más simple:** el plugin puede hacer todo solo, sin el servicio PHP, sin token y sin tocar «Seguridad HTTP». Ver [instalacion-autonoma.md](instalacion-autonoma.md). Esta guía es para usar el **servicio externo** (proveedor «Servicio externo (php-service)»).
+
 Esta guía es para quien ya tiene un Moodle funcionando (en Windows, Linux o macOS) y quiere agregarle el botón **Auto Evaluar**. Hay que instalar dos piezas:
 
 1. **El plugin**, dentro de Moodle.

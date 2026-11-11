@@ -63,8 +63,7 @@ class process_submission extends external_api {
 
         $archivos = self::extraer_archivos_entrega($assign, $submission);
 
-        // Obtenemos el username: es la clave que usa FastAPI para
-        // encontrar el archivo .txt específico de ESTE estudiante.
+        // El username solo lo usa el servicio externo (fastapi_adapter).
         $estudiante = \core_user::get_user($params['userid']);
 
         $contextodatos = [
@@ -111,6 +110,8 @@ class process_submission extends external_api {
         $registro->feedbacktext  = $resultado['feedbacktext'] ?? '';
         $registro->rawresponse   = json_encode($resultado['raw'] ?? null);
         $registro->errormessage  = $resultado['error'] ?? null;
+        $registro->transcription = $resultado['transcription'] ?? null;
+        $registro->tokens        = (int) ($resultado['tokens'] ?? 0);
         $registro->timecreated   = time();
         $registro->timemodified  = time();
 
@@ -170,6 +171,9 @@ class process_submission extends external_api {
                 'filename' => $file->get_filename(),
                 'fileurl'  => $urlconweservice,
                 'mimetype' => $file->get_mimetype(),
+                // Los proveedores que corren dentro de Moodle (gemini_adapter)
+                // leen el archivo directamente, sin URL ni token.
+                'fileid'   => (int) $file->get_id(),
             ];
         }
 

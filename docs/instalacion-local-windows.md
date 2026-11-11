@@ -13,6 +13,8 @@ Al terminar tendrás:
 
 Se probó con Windows 11, Moodle 4.5.13+ y el PHP 8.2.4 del paquete. Sin Imagick, los PDF se envían enteros a Gemini (`PDF_MODO=directo`); así se probó con PDF reales el 9 de noviembre de 2026. La conversión a imágenes con Imagick + Ghostscript en Windows todavía no se ha probado en este equipo.
 
+> **Desde la 0.5.0 hay una forma más simple:** el plugin puede hacer todo solo, sin el servicio PHP, sin token y sin tocar «Seguridad HTTP». Ver [instalacion-autonoma.md](instalacion-autonoma.md). Con el modo autónomo, en esta guía basta con los pasos 1, 2, 3 y 6, y en el paso 7 eliges el proveedor «Gemini (directo)» con tu clave; los pasos 4, 5 y 8 solo hacen falta para el servicio externo.
+
 ## 0. Requisitos
 
 | Requisito | Detalle |
