@@ -86,6 +86,56 @@ if ($ADMIN->fulltree) {
         1
     ));
 
+    // --- Modelo local (Ollama), p. ej. Gemma ---
+    $settings->add(new admin_setting_heading(
+        'assignfeedback_aiocr/heading_local',
+        get_string('settings:heading_local', 'assignfeedback_aiocr'),
+        get_string('settings:heading_local_desc', 'assignfeedback_aiocr',
+            get_string(\assignfeedback_aiocr\local\rasterizador::disponible() !== null
+                ? 'settings:rasterizer_ok' : 'settings:rasterizer_missing', 'assignfeedback_aiocr',
+                \assignfeedback_aiocr\local\rasterizador::disponible()))
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/local_url',
+        get_string('settings:local_url', 'assignfeedback_aiocr'),
+        get_string('settings:local_url_help', 'assignfeedback_aiocr'),
+        \assignfeedback_aiocr\local\ollama_adapter::URL_POR_DEFECTO,
+        PARAM_URL
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/local_model',
+        get_string('settings:local_model', 'assignfeedback_aiocr'),
+        get_string('settings:local_model_help', 'assignfeedback_aiocr'),
+        \assignfeedback_aiocr\local\ollama_adapter::MODELO_POR_DEFECTO,
+        '/^[a-zA-Z0-9._:\/-]+$/'
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/local_timeout',
+        get_string('settings:local_timeout', 'assignfeedback_aiocr'),
+        get_string('settings:local_timeout_help', 'assignfeedback_aiocr'),
+        600,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/local_num_ctx',
+        get_string('settings:local_num_ctx', 'assignfeedback_aiocr'),
+        get_string('settings:local_num_ctx_help', 'assignfeedback_aiocr'),
+        16384,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'assignfeedback_aiocr/local_dpi',
+        get_string('settings:local_dpi', 'assignfeedback_aiocr'),
+        get_string('settings:local_dpi_help', 'assignfeedback_aiocr'),
+        150,
+        PARAM_INT
+    ));
+
     // --- Servicio externo (opcional) ---
     $settings->add(new admin_setting_heading(
         'assignfeedback_aiocr/heading_service',

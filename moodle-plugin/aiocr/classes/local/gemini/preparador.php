@@ -17,9 +17,9 @@ defined('MOODLE_INTERNAL') || die();
 final class preparador {
 
     /**
-     * @param cliente_gemini $gemini cliente configurado
+     * @param modelo_ia $gemini modelo configurado (Gemini o local)
      */
-    public function __construct(private readonly cliente_gemini $gemini) {
+    public function __construct(private readonly modelo_ia $gemini) {
     }
 
     /**
@@ -39,7 +39,7 @@ final class preparador {
         }
         [$texto, $consumo] = $this->gemini->consultar_con(prompts::PREPARAR, $mensaje, $archivos);
         if ($texto === '') {
-            throw new evaluacion_exception('gemini', 'la preparación está vacía');
+            throw new evaluacion_exception($this->gemini->clave_error(), 'la preparación está vacía');
         }
         return [self::limpiar($texto), $consumo];
     }

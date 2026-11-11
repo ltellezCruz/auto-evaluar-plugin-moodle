@@ -13,7 +13,7 @@ defined('MOODLE_INTERNAL') || die();
 /**
  * Cliente mínimo de generateContent.
  */
-final class cliente_gemini {
+final class cliente_gemini implements modelo_ia {
 
     /** Dirección de la API (sin el modelo). */
     public const URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
@@ -38,6 +38,18 @@ final class cliente_gemini {
             throw new evaluacion_exception('gemini', "nombre de modelo no válido: $modelo");
         }
         $this->transporte = $transporte;
+    }
+
+    public function nombre(): string {
+        return $this->modelo;
+    }
+
+    public function acepta_pdf(): bool {
+        return true;
+    }
+
+    public function clave_error(): string {
+        return 'gemini';
     }
 
     /** Tokens de la respuesta (usageMetadata). */

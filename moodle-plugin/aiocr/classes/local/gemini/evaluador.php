@@ -34,14 +34,23 @@ final class evaluador {
     /** @var string transcripción de la última evaluación */
     public string $transcripcion = '';
 
+    /** @var callable|null */
+    private $rasterizador;
+
     /**
-     * @param cliente_gemini $gemini cliente ya configurado
+     * @param modelo_ia $gemini modelo ya configurado (Gemini o local)
      * @param int $maxpaginas páginas máximas de toda la entrega
+     * @param callable|null $rasterizador fn(string $pdf, int $dpi, int $paginas): string[] (PNG por
+     *        página). Solo se usa si el modelo no acepta PDF (modelos locales).
+     * @param int $dpi resolución de las páginas convertidas
      */
     public function __construct(
-        private readonly cliente_gemini $gemini,
+        private readonly modelo_ia $gemini,
         private readonly int $maxpaginas,
+        ?callable $rasterizador = null,
+        private readonly int $dpi = 150,
     ) {
+        $this->rasterizador = $rasterizador;
     }
 
     /**
@@ -80,8 +89,9 @@ final class evaluador {
                 'estado' => isset($d['omitido']) ? 'omitido: ' . $d['omitido'] : 'pendiente',
             ], $documentos),
             'texto_en_linea_caracteres' => self::largo($textoenlinea),
-            'modelo' => $this->gemini->modelo,
-            'modo_pdf' => 'directo',
+            'modelo' => $this->gemini->nombre(),
+            'modo_pdf' => $this->gemini->acepta_pdf() ? 'directo' : 'imagen',
+            'dpi' => $this->gemini->acepta_pdf() ? null : $this->dpi,
             'contexto_profesor' => $contextoprofesor === '' ? 'ninguno' : $origencontexto,
             'contexto_profesor_caracteres' => self::largo($contextoprofesor),
             'paginas' => 0,
@@ -131,8 +141,15 @@ final class evaluador {
         // --- PASO 1: transcribir ---
         $bloques = [];
         $fallos = [];
+        $error = $this->gemini->clave_error();
         foreach ($validos as $i => $d) {
             $espdf = $d['mimetype'] === 'application/pdf';
+            if ($espdf && !$this->gemini->acepta_pdf()) {
+                // Modelo local: una imagen por página, cada una transcrita aparte
+                // (el algoritmo original, como PDF_MODO=imagen del servicio).
+                $this->transcribir_por_paginas($d, $paginas[$i], $i, $bloques, $fallos);
+                continue;
+            }
             $rango = $paginas[$i] > 1 ? "1-{$paginas[$i]}" : 1;
             $prompt = $espdf
                 ? str_replace('{paginas}', (string) $paginas[$i], prompts::EXTRAER_PDF) . prompts::EXTRAER
@@ -140,10 +157,11 @@ final class evaluador {
             $this->registro['archivos'][$i]['estado'] = 'procesado';
             $this->registro['archivos'][$i]['paginas'] = $paginas[$i];
             try {
-                [$texto, $consumo] = $this->gemini->consultar($prompt, $d['mimetype'], $d['contenido']);
+                [$texto, $consumo] = $this->gemini->consultar_con(null, $prompt,
+                    [['mimetype' => $d['mimetype'], 'contenido' => $d['contenido']]]);
                 $this->registro['llamadas'][] = ['paso' => 'transcripcion', 'archivo' => $d['nombre'], 'pagina' => $rango] + $consumo;
                 if ($texto === '') {
-                    throw new evaluacion_exception('gemini', 'la transcripción está vacía');
+                    throw new evaluacion_exception($error, 'la transcripción está vacía');
                 }
             } catch (evaluacion_exception $e) {
                 $fallos[] = "{$d['nombre']}: " . (is_scalar($e->a) ? $e->a : $e->getMessage());
@@ -170,9 +188,46 @@ final class evaluador {
         [$retro, $consumo] = $this->gemini->consultar_con($sistema, $mensaje);
         $this->registro['llamadas'][] = ['paso' => 'evaluacion'] + $consumo;
         if ($retro === '') {
-            throw new evaluacion_exception('gemini', 'la evaluación está vacía');
+            throw new evaluacion_exception($error, 'la evaluación está vacía');
         }
         return $retro;
+    }
+
+    /**
+     * Convierte un PDF en una imagen por página y transcribe cada una.
+     *
+     * @param array $d documento
+     * @param int $paginas páginas del PDF (ya contadas y dentro del límite)
+     * @param int $i índice en el registro
+     * @param array $bloques bloques de la transcripción (se agregan)
+     * @param array $fallos fallos (se agregan)
+     */
+    private function transcribir_por_paginas(array $d, int $paginas, int $i, array &$bloques, array &$fallos): void {
+        if ($this->rasterizador === null) {
+            throw new evaluacion_exception('norasterizer');
+        }
+        try {
+            $imagenes = ($this->rasterizador)($d['contenido'], $this->dpi, $paginas);
+        } catch (evaluacion_exception $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new evaluacion_exception('rasterize', (object) ['name' => $d['nombre'], 'error' => $e->getMessage()]);
+        }
+        $this->registro['archivos'][$i]['estado'] = 'procesado';
+        $this->registro['archivos'][$i]['paginas'] = count($imagenes);
+        foreach (array_values($imagenes) as $k => $png) {
+            try {
+                [$texto, $consumo] = $this->gemini->consultar_con(null, prompts::EXTRAER,
+                    [['mimetype' => 'image/png', 'contenido' => $png]]);
+                $this->registro['llamadas'][] = ['paso' => 'transcripcion', 'archivo' => $d['nombre'], 'pagina' => $k + 1] + $consumo;
+                if ($texto === '') {
+                    throw new evaluacion_exception($this->gemini->clave_error(), 'la transcripción está vacía');
+                }
+                $bloques[] = "Archivo: {$d['nombre']} | Página: " . ($k + 1) . "\n$texto";
+            } catch (evaluacion_exception $e) {
+                $fallos[] = "{$d['nombre']} pág. " . ($k + 1) . ': ' . (is_scalar($e->a) ? $e->a : $e->getMessage());
+            }
+        }
     }
 
     /**

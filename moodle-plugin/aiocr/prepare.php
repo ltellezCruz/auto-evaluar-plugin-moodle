@@ -69,7 +69,8 @@ echo html_writer::tag('p', get_string('prepare:intro', 'assignfeedback_aiocr'));
 if (!$plugin->is_enabled()) {
     echo $OUTPUT->notification(get_string('prepare:disabled', 'assignfeedback_aiocr'), 'warning');
 }
-if (get_config('assignfeedback_aiocr', 'provider') !== 'gemini_adapter' && get_config('assignfeedback_aiocr', 'provider')) {
+$proveedor = get_config('assignfeedback_aiocr', 'provider');
+if ($proveedor && !in_array($proveedor, ['gemini_adapter', 'ollama_adapter'], true)) {
     echo $OUTPUT->notification(get_string('prepare:otherprovider', 'assignfeedback_aiocr'), 'warning');
 }
 

@@ -8,6 +8,7 @@
 namespace AutoEvaluar\Pruebas;
 
 use assignfeedback_aiocr\local\gemini\cliente_gemini;
+use assignfeedback_aiocr\local\gemini\cliente_ollama;
 use assignfeedback_aiocr\local\gemini\evaluacion_exception;
 use assignfeedback_aiocr\local\gemini\evaluador;
 use assignfeedback_aiocr\local\gemini\pdf_paginas;
@@ -29,7 +30,8 @@ final class PluginGeminiTest extends TestCase
         if (!defined('MOODLE_INTERNAL')) {
             define('MOODLE_INTERNAL', true);
         }
-        foreach (['evaluacion_exception', 'prompts', 'pdf_paginas', 'cliente_gemini', 'evaluador', 'preparador'] as $clase) {
+        foreach (['evaluacion_exception', 'prompts', 'pdf_paginas', 'modelo_ia', 'cliente_gemini', 'cliente_ollama',
+                'evaluador', 'preparador'] as $clase) {
             require_once DeployPlugin::ORIGEN . "/classes/local/gemini/$clase.php";
         }
     }
@@ -202,6 +204,107 @@ final class PluginGeminiTest extends TestCase
 
         $error = $this->clave(fn () => $preparador->preparar('  ', []));
         $this->assertSame('nocontext', $error->clave);
+    }
+
+    // --- Modelo local (Ollama, p. ej. Gemma) ---
+
+    /** Ollama falso: responde a /api/chat y anota lo que recibe. */
+    private function ollama(array &$peticiones, array $forzadas = []): callable
+    {
+        return function (string $url, string $cuerpo, array $cabeceras, int $timeout) use (&$peticiones, $forzadas): array {
+            $datos = json_decode($cuerpo, true);
+            $peticiones[] = ['url' => $url, 'cuerpo' => $datos, 'cabeceras' => $cabeceras, 'timeout' => $timeout];
+            if (isset($forzadas[count($peticiones)])) {
+                return $forzadas[count($peticiones)];
+            }
+            $ultimo = end($datos['messages']);
+            $texto = isset($ultimo['images']) ? 'PAGINA TRANSCRITA' : '<div>RETRO LOCAL</div>';
+            return [200, json_encode(['message' => ['role' => 'assistant', 'content' => $texto],
+                'prompt_eval_count' => 100, 'eval_count' => 20]), ''];
+        };
+    }
+
+    public function testClienteOllama(): void
+    {
+        $peticiones = [];
+        $cliente = new cliente_ollama('http://10.0.0.5:11434/', 'gemma4:31b', 600, 16384, $this->ollama($peticiones));
+        $this->assertFalse($cliente->acepta_pdf());
+        [$texto, $consumo] = $cliente->consultar_con('REGLAS', 'hola', [['mimetype' => 'image/png', 'contenido' => 'PNG']]);
+
+        $this->assertSame('PAGINA TRANSCRITA', $texto);
+        $this->assertSame(['entrada' => 100, 'salida' => 20, 'razonamiento' => 0, 'total' => 120], $consumo);
+        $p = $peticiones[0];
+        $this->assertSame('http://10.0.0.5:11434/api/chat', $p['url']);
+        $this->assertSame(600, $p['timeout']);
+        $this->assertSame(['Content-Type: application/json'], $p['cabeceras'], 'sin clave ni token');
+        $this->assertSame('gemma4:31b', $p['cuerpo']['model']);
+        $this->assertFalse($p['cuerpo']['stream']);
+        $this->assertSame(16384, $p['cuerpo']['options']['num_ctx']);
+        $this->assertSame([['role' => 'system', 'content' => 'REGLAS'],
+            ['role' => 'user', 'content' => 'hola', 'images' => [base64_encode('PNG')]]], $p['cuerpo']['messages']);
+
+        // Errores: no admite PDF, modelo inexistente, sin conexión.
+        $error = $this->clave(fn () => $cliente->consultar_con(null, 'x', [['mimetype' => 'application/pdf', 'contenido' => '%PDF']]));
+        $this->assertSame('localmodel', $error->clave);
+        $peticiones = [];
+        $mal = new cliente_ollama('http://127.0.0.1:11434', 'gemma4:31b', 60, 4096, $this->ollama($peticiones, [
+            1 => [404, json_encode(['error' => 'model "gemma4:31b" not found, try pulling it first']), ''],
+            2 => [0, '', 'Failed to connect to 127.0.0.1 port 11434'],
+        ]));
+        $this->assertStringContainsString('not found, try pulling it first', $this->clave(fn () => $mal->consultar_con(null, 'x'))->a);
+        $this->assertStringContainsString('Failed to connect', $this->clave(fn () => $mal->consultar_con(null, 'x'))->a);
+        $this->assertSame('localmodel', $this->clave(fn () => new cliente_ollama('ftp://x', 'g', 1, 1, fn () => []))->clave);
+    }
+
+    public function testModeloLocalTranscribePaginaPorPagina(): void
+    {
+        $peticiones = [];
+        $rasterizadas = [];
+        $rasterizador = function (string $pdf, int $dpi, int $paginas) use (&$rasterizadas): array {
+            $rasterizadas[] = [$dpi, $paginas];
+            return array_map(static fn ($k) => "PNG$k", range(1, $paginas));
+        };
+        $e = new evaluador(new cliente_ollama('http://127.0.0.1:11434', 'gemma4:31b', 600, 16384, $this->ollama($peticiones)),
+            20, $rasterizador, 120);
+        $imagen = ['nombre' => 'foto.png', 'mimetype' => 'image/png', 'contenido' => 'IMG'];
+
+        $retro = $e->evaluar([self::pdf(2), $imagen], 'texto', 'RUBRICA', 'preparado');
+
+        $this->assertSame('<div>RETRO LOCAL</div>', $retro);
+        $this->assertSame([[120, 2]], $rasterizadas);
+        $this->assertCount(4, $peticiones, '2 páginas + 1 imagen + 1 evaluación');
+        foreach ([0 => 'PNG1', 1 => 'PNG2', 2 => 'IMG'] as $n => $png) {
+            $usuario = end($peticiones[$n]['cuerpo']['messages']);
+            $this->assertSame([base64_encode($png)], $usuario['images']);
+            $this->assertSame(prompts::EXTRAER, $usuario['content'], 'el prompt original, una página a la vez');
+        }
+        // La evaluación: reglas como mensaje de sistema; rúbrica y entrega en sus bloques.
+        $evaluacion = $peticiones[3]['cuerpo']['messages'];
+        $this->assertSame('system', $evaluacion[0]['role']);
+        $this->assertStringContainsString('INPUT STRUCTURE AND TRUST', $evaluacion[0]['content']);
+        $this->assertStringContainsString("RUBRICA\n<<<END_PROFESOR_", $evaluacion[1]['content']);
+        foreach (['doc_2.pdf | Página: 1', 'doc_2.pdf | Página: 2', 'foto.png | Página: 1'] as $bloque) {
+            $this->assertStringContainsString("Archivo: $bloque\nPAGINA TRANSCRITA", $e->transcripcion);
+        }
+        $r = $e->registro;
+        $this->assertSame(['gemma4:31b', 'imagen', 120, 3, 480], [$r['modelo'], $r['modo_pdf'], $r['dpi'], $r['paginas'], $r['tokens_total']]);
+        $this->assertSame([1, 2, 1], array_column(array_slice($r['llamadas'], 0, 3), 'pagina'));
+    }
+
+    public function testModeloLocalSinConversorDePdf(): void
+    {
+        $peticiones = [];
+        $e = new evaluador(new cliente_ollama('http://127.0.0.1:11434', 'gemma4:31b', 60, 4096, $this->ollama($peticiones)), 20);
+        $this->assertSame('norasterizer', $this->clave(fn () => $e->evaluar([self::pdf(1)], null))->clave);
+        $this->assertSame([], $peticiones);
+
+        // Sin PDF no hace falta conversor: texto en línea e imágenes sí funcionan.
+        $this->assertSame('<div>RETRO LOCAL</div>', $e->evaluar([], 'solo texto'));
+        $falla = new evaluador(new cliente_ollama('http://127.0.0.1:11434', 'g', 60, 4096, $this->ollama($peticiones)), 20,
+            fn () => throw new \RuntimeException('gs falló'));
+        $error = $this->clave(fn () => $falla->evaluar([self::pdf(1)], null));
+        $this->assertSame('rasterize', $error->clave);
+        $this->assertSame('gs falló', $error->a->error);
     }
 
     public function testDemasiadasPaginasNoLlamaAGemini(): void

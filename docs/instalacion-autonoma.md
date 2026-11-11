@@ -75,6 +75,8 @@ Para que la evaluación siga lo que pides en cada tarea:
 
 Si cambias la rúbrica, el texto o los archivos después de preparar, la pantalla de calificación avisa que el contexto está desactualizado. Sin preparar, se usa el material tal cual (sin los archivos). Los estudiantes no ven este material.
 
+> **¿Sin clave de Gemini?** Desde la 0.7.0 el proveedor «Modelo local (Ollama)» usa un modelo propio, como Gemma: ver [modelo-local-gemma.md](modelo-local-gemma.md).
+
 ## 7. Prueba
 
 Tarea → Ver todas las entregas → Calificar → **Auto Evaluar** sobre una entrega en PDF, imagen o texto en línea. La retroalimentación aparece en «Comentarios de retroalimentación»; la calificación no cambia.

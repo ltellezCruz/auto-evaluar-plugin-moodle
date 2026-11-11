@@ -4,6 +4,8 @@ Plugin de retroalimentación para la actividad Tarea de Moodle 4.5 (`assignfeedb
 
 Trabajo de grado. Estado: prototipo (madurez ALPHA). Licencia: GPLv3 (ver `LICENSE`), como exige Moodle para sus plugins.
 
+> **Desde la 0.7.0 se puede usar un modelo propio, como Gemma 4 31B con Ollama, sin claves** (para pruebas): [guía](docs/modelo-local-gemma.md).
+>
 > **Desde la 0.6.0 la evaluación sigue la rúbrica del profesor:** la de Moodle, un contexto escrito o archivos (rúbrica, solucionario), preparados una vez con «Preparar rúbrica con IA» ([guía, paso 6](docs/instalacion-autonoma.md#6-opcional-rúbrica-y-contexto-del-profesor)).
 >
 > **Desde la 0.5.0 el plugin es autónomo:** con el proveedor «Gemini (directo)» hace todo dentro de Moodle y basta con instalar el zip y poner la clave de Gemini ([guía](docs/instalacion-autonoma.md)). El servicio `php-service/` queda como proveedor opcional.

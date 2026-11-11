@@ -8,6 +8,29 @@ Cada versión indica:
 
 Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
 
+## 0.7.0 (plugin `2026111101`): modelo local (Gemma con Ollama), sin claves
+
+### Cambios
+
+- **Proveedor nuevo «Modelo local (Ollama, p. ej. Gemma), sin clave»** (`ollama_adapter`). Evalúa dentro de Moodle con un modelo propio, por ejemplo Gemma 4 31B, servido con Ollama en el mismo servidor o en otro de la red. No usa claves ni tokens y las entregas no van a Google. Pensado para pruebas y comparación con Gemini, que sigue disponible.
+- **Algoritmo original para el modelo local:** como no lee PDF, cada página se convierte en imagen (Ghostscript configurado en Moodle o la extensión imagick) y se transcribe por separado; luego se evalúa con las mismas reglas, la rúbrica del profesor y los bloques separados de la 0.6.0.
+- **Código común:** `adaptador_modelo` reúne lo de Moodle (archivos, límites, candados, registro); `gemini_adapter` y `ollama_adapter` solo dicen qué modelo usan. El evaluador trabaja con la interfaz `modelo_ia` (`cliente_gemini` y el nuevo `cliente_ollama`). `rasterizador` convierte PDF en imágenes.
+- **Ajustes nuevos:** URL de Ollama, modelo, tiempo de espera por llamada (600 s), ventana de contexto (16384) y resolución de las páginas (150 DPI). La página de ajustes dice si el servidor puede convertir PDF.
+- «Preparar rúbrica con IA» usa el modelo del proveedor elegido.
+- Privacidad: se declara el envío al servidor de Ollama.
+- Guía nueva: [docs/modelo-local-gemma.md](docs/modelo-local-gemma.md) (requisitos, Ollama, Seguridad HTTP, Ghostscript).
+
+### Probado
+
+- Pruebas automáticas del cliente de Ollama y del evaluador página por página (75 en total).
+- En el Moodle local, con un **Ollama simulado**: la evaluación llega con instrucciones de sistema, `num_ctx`, el contexto del profesor y sin clave; un PDF sin conversor da un mensaje claro; Moodle bloquea el puerto 11434 hasta permitirlo en «Seguridad HTTP».
+- **No probado con Gemma real ni con Ghostscript.** El PC de desarrollo (11,8 GB de RAM, GPU de 2 GB) no puede correr Gemma 4 31B.
+
+### Al actualizar desde 0.6.0
+
+1. Despliega el plugin y ejecuta la actualización de Moodle (no hay cambios de tablas). El proveedor no cambia.
+2. Para usar Gemma: sigue [docs/modelo-local-gemma.md](docs/modelo-local-gemma.md).
+
 ## 0.6.0 (plugin `2026111100`): rúbrica y contexto del profesor
 
 ### Cambios

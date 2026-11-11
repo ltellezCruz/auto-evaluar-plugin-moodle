@@ -6,6 +6,7 @@ namespace assignfeedback_aiocr\local;
 defined('MOODLE_INTERNAL') || die();
 
 use assignfeedback_aiocr\local\gemini\evaluador;
+use assignfeedback_aiocr\local\gemini\pdf_paginas;
 use assignfeedback_aiocr\local\gemini\preparador;
 
 /**
@@ -182,15 +183,34 @@ class contexto_profesor {
      */
     public static function preparar(\assign $assign): array {
         $fuentes = self::fuentes($assign);
-        $archivos = array_map(static fn (\stored_file $a) => [
-            'nombre' => $a->get_filename(),
-            'mimetype' => evaluador::tipo_admitido((string) $a->get_mimetype(), $a->get_filename()),
-            'contenido' => $a->get_content(),
-        ], $fuentes['archivos']);
-
         \core_php_time_limit::raise();
         raise_memory_limit(MEMORY_EXTRA);
-        [$texto, $consumo] = (new preparador(gemini_adapter::crear_cliente()))->preparar($fuentes['texto'], $archivos);
+
+        // El modelo del proveedor del sitio (Gemini o local). Si el proveedor
+        // no evalúa dentro de Moodle (servicio externo, prueba), Gemini.
+        $proveedor = provider_factory::get_provider();
+        $modelo = $proveedor instanceof adaptador_modelo ? $proveedor->crear_modelo() : gemini_adapter::crear_cliente();
+
+        $archivos = [];
+        foreach ($fuentes['archivos'] as $a) {
+            $tipo = evaluador::tipo_admitido((string) $a->get_mimetype(), $a->get_filename());
+            if ($tipo === 'application/pdf' && !$modelo->acepta_pdf()) {
+                // Modelo local: el PDF del profesor va como imágenes de sus páginas.
+                $paginas = min(pdf_paginas::contar($a->get_content()), max(1, (int) get_config('assignfeedback_aiocr', 'max_pages') ?: 20));
+                $dpi = max(72, min(300, (int) get_config('assignfeedback_aiocr', 'local_dpi') ?: 150));
+                try {
+                    $imagenes = rasterizador::convertir($a->get_content(), $dpi, $paginas);
+                } catch (\RuntimeException $e) {
+                    throw new gemini\evaluacion_exception('rasterize', (object) ['name' => $a->get_filename(), 'error' => $e->getMessage()]);
+                }
+                foreach ($imagenes as $k => $png) {
+                    $archivos[] = ['nombre' => $a->get_filename() . ' (pág. ' . ($k + 1) . ')', 'mimetype' => 'image/png', 'contenido' => $png];
+                }
+            } else {
+                $archivos[] = ['nombre' => $a->get_filename(), 'mimetype' => $tipo, 'contenido' => $a->get_content()];
+            }
+        }
+        [$texto, $consumo] = (new preparador($modelo))->preparar($fuentes['texto'], $archivos);
         self::guardar($assign, $texto, $fuentes['hash']);
         return [$texto, $consumo];
     }

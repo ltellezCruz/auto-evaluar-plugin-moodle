@@ -45,6 +45,9 @@ class provider implements
         $collection->add_external_location_link('gemini', [
             'submission' => 'privacy:metadata:gemini:submission',
         ], 'privacy:metadata:gemini');
+        $collection->add_external_location_link('localmodel', [
+            'submission' => 'privacy:metadata:localmodel:submission',
+        ], 'privacy:metadata:localmodel');
         $collection->add_external_location_link('service', [
             'submission' => 'privacy:metadata:service:submission',
         ], 'privacy:metadata:service');

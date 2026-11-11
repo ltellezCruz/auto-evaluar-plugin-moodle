@@ -22,6 +22,7 @@ class provider_factory {
     /** @var array Mapa nombre-corto => nombre de clase completo. */
     private const PROVIDERS = [
         'gemini_adapter'  => \assignfeedback_aiocr\local\gemini_adapter::class,
+        'ollama_adapter'  => \assignfeedback_aiocr\local\ollama_adapter::class,
         'fastapi_adapter' => \assignfeedback_aiocr\local\fastapi_adapter::class,
         'mock_adapter'    => \assignfeedback_aiocr\local\mock_adapter::class,
         // 'openai_adapter' => \assignfeedback_aiocr\local\openai_adapter::class,
