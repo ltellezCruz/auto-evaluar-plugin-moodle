@@ -72,6 +72,9 @@ class process_submission extends external_api {
             'username'     => $estudiante->username,
             'files'        => $archivos,
             'onlinetext'   => self::extraer_texto_en_linea($assign, $submission),
+            // Rúbrica / contexto del profesor: [texto, origen]. Lo usan los
+            // proveedores que lo admiten (gemini_adapter).
+            'teachercontext' => \assignfeedback_aiocr\local\contexto_profesor::para_evaluar($assign),
         ];
 
         // --- 3. Delegar al proveedor de IA configurado (genérico) ---

@@ -9,7 +9,11 @@
 //        y cada imagen en otra (EXTRAER). El texto en línea va tal cual.
 //     3. Si algo no se pudo transcribir, se detiene: no se publica una
 //        evaluación incompleta.
-//     4. PASO 2 de Gemini: evalúa la transcripción completa (EVALUAR).
+//     4. PASO 2 de Gemini: evalúa la transcripción completa. Las reglas
+//        (EVALUAR + REGLAS_EVALUACION) van como instrucciones de sistema; el
+//        contexto del profesor (rúbrica) y la entrega van en el mensaje, en
+//        bloques separados con marcas aleatorias: lo que venga de la entrega
+//        se trata como datos, nunca como instrucciones.
 //
 // No depende de Moodle: recibe los archivos ya leídos y el cliente de
 // Gemini. gemini_adapter pone lo que es de Moodle (archivos, ajustes,
@@ -59,10 +63,14 @@ final class evaluador {
      * @param array $documentos en orden; cada uno ['nombre' => string, 'mimetype' => string,
      *        'contenido' => string] o, si no se procesa, ['nombre' => string, 'omitido' => motivo]
      * @param string|null $textoenlinea texto en línea de la entrega
+     * @param string|null $contextoprofesor rúbrica / contexto de la tarea (de confianza)
+     * @param string $origencontexto de dónde salió el contexto (se anota en el registro)
      * @return string retroalimentación (HTML que genera Gemini)
      * @throws evaluacion_exception
      */
-    public function evaluar(array $documentos, ?string $textoenlinea): string {
+    public function evaluar(array $documentos, ?string $textoenlinea, ?string $contextoprofesor = null,
+            string $origencontexto = 'ninguno'): string {
+        $contextoprofesor = trim((string) $contextoprofesor);
         $inicio = microtime(true);
         $textoenlinea = trim((string) $textoenlinea);
         $this->transcripcion = '';
@@ -74,13 +82,15 @@ final class evaluador {
             'texto_en_linea_caracteres' => self::largo($textoenlinea),
             'modelo' => $this->gemini->modelo,
             'modo_pdf' => 'directo',
+            'contexto_profesor' => $contextoprofesor === '' ? 'ninguno' : $origencontexto,
+            'contexto_profesor_caracteres' => self::largo($contextoprofesor),
             'paginas' => 0,
             'llamadas' => [],
             'resultado' => 'error',
             'error' => null,
         ];
         try {
-            $retro = $this->procesar($documentos, $textoenlinea);
+            $retro = $this->procesar($documentos, $textoenlinea, $contextoprofesor);
             $this->registro['resultado'] = 'ok';
             return $retro;
         } catch (evaluacion_exception $e) {
@@ -92,7 +102,7 @@ final class evaluador {
         }
     }
 
-    private function procesar(array $documentos, string $textoenlinea): string {
+    private function procesar(array $documentos, string $textoenlinea, string $contextoprofesor): string {
         $validos = array_filter($documentos, static fn ($d) => !isset($d['omitido']));
         if (!$validos && $textoenlinea === '') {
             $omitidos = implode('; ', array_map(static fn ($a) => "{$a['nombre']} ({$a['estado']})", $this->registro['archivos']));
@@ -156,12 +166,50 @@ final class evaluador {
         }
 
         // --- PASO 2: evaluar la transcripción completa ---
-        [$retro, $consumo] = $this->gemini->consultar(prompts::EVALUAR . $this->transcripcion);
+        [$sistema, $mensaje] = self::armar_evaluacion($this->transcripcion, $contextoprofesor);
+        [$retro, $consumo] = $this->gemini->consultar_con($sistema, $mensaje);
         $this->registro['llamadas'][] = ['paso' => 'evaluacion'] + $consumo;
         if ($retro === '') {
             throw new evaluacion_exception('gemini', 'la evaluación está vacía');
         }
         return $retro;
+    }
+
+    /**
+     * Instrucciones de sistema y mensaje del paso de evaluación.
+     *
+     * Cada solicitud usa marcas nuevas al azar: quien escribe la entrega no
+     * puede adivinarlas para «cerrar» su bloque y abrir uno falso. Por si
+     * acaso, cualquier «<<<» dentro de los datos se neutraliza.
+     *
+     * @return array [instrucciones de sistema, mensaje]
+     */
+    public static function armar_evaluacion(string $transcripcion, string $contextoprofesor): array {
+        $azar = strtoupper(bin2hex(random_bytes(6)));
+        $entrega = "ENTREGA_$azar";
+        $profesor = "PROFESOR_$azar";
+        // EVALUAR termina en «The extraction to evaluate follows:»: aquí la
+        // entrega va en el mensaje, en su bloque.
+        $reglas = preg_replace('/The extraction to evaluate follows:\s*$/', '', prompts::EVALUAR);
+        $sistema = rtrim($reglas) . "
+" . str_replace(['{entrega}', '{profesor}'], [$entrega, $profesor], prompts::REGLAS_EVALUACION);
+
+        $neutralizar = static fn (string $t) => str_replace(['<<<', '>>>'], ['‹‹‹', '›››'], $t);
+        $mensaje = '';
+        if ($contextoprofesor !== '') {
+            $mensaje .= "TEACHER CONTEXT
+<<<$profesor>>>
+" . $neutralizar($contextoprofesor) . "
+<<<END_$profesor>>>
+
+";
+        }
+        $mensaje .= "STUDENT SUBMISSION
+<<<$entrega>>>
+" . $neutralizar($transcripcion) . "
+<<<END_$entrega>>>
+";
+        return [$sistema, $mensaje];
     }
 
     /** Largo en caracteres (UTF-8). */

@@ -17,7 +17,7 @@ class evaluacion_exception extends \Exception {
     /** Claves posibles (todas existen como error:<clave> en lang/). */
     public const CLAVES = [
         'pdfinvalid', 'pdfencrypted', 'pdfnopages', 'pdfopen', 'filetoobig', 'toomanypages',
-        'nocontent', 'transcription', 'gemini', 'busy', 'nogeminikey',
+        'nocontent', 'transcription', 'gemini', 'busy', 'nogeminikey', 'nocontext',
     ];
 
     /** @var string clave del mensaje */

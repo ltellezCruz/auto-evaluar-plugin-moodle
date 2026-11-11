@@ -61,7 +61,21 @@ Tarea → Configuración → **Tipos de retroalimentación** → activa «Auto E
 
 Pueden usar el botón los roles Profesor, Profesor sin permiso de edición y Gestor (capacidad `assignfeedback/aiocr:generate`).
 
-## 6. Prueba
+## 6. Opcional: rúbrica y contexto del profesor
+
+Para que la evaluación siga lo que pides en cada tarea:
+
+1. **Material** (cualquiera, o varios):
+   - una **rúbrica o guía de evaluación** de Moodle: Tarea → Calificación avanzada;
+   - en los ajustes de la tarea, sección Auto Evaluar: **«Contexto para la IA»** (respuestas esperadas, criterios, qué no penalizar) y **«Archivos del profesor para la IA»** (rúbrica, enunciado o solucionario en PDF, PNG o JPG);
+   - la descripción y los archivos adicionales de la tarea también se usan.
+2. **Preparar:** en los ajustes de la tarea o en la pantalla de calificación, **«Preparar rúbrica con IA»** → «Generar con IA». Gemini ordena el material en preguntas, respuestas esperadas, criterios y vacíos por resolver.
+3. **Revisar:** corrige el texto (sobre todo las respuestas marcadas «propuesta por la IA, revisar» y la sección «Vacíos o ambigüedades») y pulsa «Guardar cambios».
+4. Desde ahí, cada evaluación usa ese contexto y termina con una **valoración por criterio** (nivel sugerido y justificación). La nota la pones tú.
+
+Si cambias la rúbrica, el texto o los archivos después de preparar, la pantalla de calificación avisa que el contexto está desactualizado. Sin preparar, se usa el material tal cual (sin los archivos). Los estudiantes no ven este material.
+
+## 7. Prueba
 
 Tarea → Ver todas las entregas → Calificar → **Auto Evaluar** sobre una entrega en PDF, imagen o texto en línea. La retroalimentación aparece en «Comentarios de retroalimentación»; la calificación no cambia.
 
@@ -71,7 +85,7 @@ Tarea → Ver todas las entregas → Calificar → **Auto Evaluar** sobre una en
 2. Cuenta las páginas de toda la entrega y la rechaza si pasa del máximo, **antes** de llamar a Gemini.
 3. Envía cada PDF **entero** a Gemini (una llamada por archivo) y cada imagen en otra llamada, para transcribirlos. El texto en línea se usa tal cual.
 4. Si algún archivo no se pudo transcribir, se detiene: no publica una evaluación incompleta.
-5. Envía la transcripción completa a Gemini para evaluarla y guarda el resultado como comentario.
+5. Envía la transcripción completa a Gemini para evaluarla, junto con el contexto del profesor si lo hay, y guarda el resultado como comentario. Las reglas van como instrucciones de sistema y la entrega en un bloque aparte: el texto de la entrega dirigido a la IA se ignora y se señala.
 
 Las instrucciones para Gemini (prompts) están en `classes/local/gemini/prompts.php`, dentro del plugin.
 

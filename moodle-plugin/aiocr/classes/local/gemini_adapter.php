@@ -73,8 +73,11 @@ class gemini_adapter implements ai_provider_interface {
                     new cliente_gemini($apikey, $modelo, $timeout, [self::class, 'transporte']),
                     $maxpaginas
                 );
+                // Rúbrica / contexto del profesor (ver contexto_profesor).
+                [$contextoprofesor, $origencontexto] = $context['teachercontext'] ?? [null, 'ninguno'];
                 try {
-                    $retro = $evaluador->evaluar($documentos, $context['onlinetext'] ?? null);
+                    $retro = $evaluador->evaluar($documentos, $context['onlinetext'] ?? null,
+                        $contextoprofesor, $origencontexto);
                 } finally {
                     $registro += $evaluador->registro;
                     $transcripcion = $evaluador->transcripcion;
@@ -92,12 +95,7 @@ class gemini_adapter implements ai_provider_interface {
                 'error' => null,
             ];
         } catch (evaluacion_exception $e) {
-            $a = $e->a;
-            if ($e->clave === 'pdfopen') {
-                // El motivo es otra clave (pdfinvalid, pdfencrypted, pdfnopages).
-                $a = (object) ['name' => $a->name, 'error' => get_string('error:' . $a->error, 'assignfeedback_aiocr')];
-            }
-            $mensaje = get_string('error:' . $e->clave, 'assignfeedback_aiocr', $a);
+            $mensaje = self::mensaje($e);
             $registro['error'] = $registro['error'] ?? $mensaje;
             return [
                 'success' => false,
@@ -108,6 +106,38 @@ class gemini_adapter implements ai_provider_interface {
                 'error' => $mensaje,
             ];
         }
+    }
+
+    /**
+     * Cliente de Gemini con los ajustes del sitio (lo usa también la
+     * preparación de la rúbrica).
+     *
+     * @throws evaluacion_exception nogeminikey
+     */
+    public static function crear_cliente(): cliente_gemini {
+        $config = get_config('assignfeedback_aiocr');
+        $apikey = trim((string) ($config->gemini_apikey ?? ''));
+        if ($apikey === '') {
+            throw new evaluacion_exception('nogeminikey');
+        }
+        return new cliente_gemini(
+            $apikey,
+            trim((string) ($config->gemini_model ?? '')) ?: self::MODELO_POR_DEFECTO,
+            max(10, (int) ($config->gemini_timeout ?? 120) ?: 120),
+            [self::class, 'transporte']
+        );
+    }
+
+    /**
+     * Mensaje de una evaluacion_exception en el idioma del usuario.
+     */
+    public static function mensaje(evaluacion_exception $e): string {
+        $a = $e->a;
+        if ($e->clave === 'pdfopen') {
+            // El motivo es otra clave (pdfinvalid, pdfencrypted, pdfnopages).
+            $a = (object) ['name' => $a->name, 'error' => get_string('error:' . $a->error, 'assignfeedback_aiocr')];
+        }
+        return get_string('error:' . $e->clave, 'assignfeedback_aiocr', $a);
     }
 
     /**

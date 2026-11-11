@@ -14,12 +14,18 @@
     * assignmentid int
     * userid int
     * ultima string (opcional): "generada el ..." de la última vez
+    * contexto string: estado de la rúbrica / contexto del profesor
+    * contextoaviso bool: el contexto preparado está desactualizado
+    * prepararurl string (opcional): enlace a prepare.php (solo quien edita la tarea)
 
     Example context (json):
     {
         "assignmentid": 1,
         "userid": 2,
-        "ultima": "AI feedback generated on Monday, 3 November 2026, 10:15 AM"
+        "ultima": "AI feedback generated on Monday, 3 November 2026, 10:15 AM",
+        "contexto": "Teacher context: prepared and reviewed",
+        "contextoaviso": false,
+        "prepararurl": "https://example.org/mod/assign/feedback/aiocr/prepare.php?id=3"
     }
 }}
 <div class="assignfeedback_aiocr" data-region="aiocr-feedback-region">
@@ -35,6 +41,13 @@
     {{#ultima}}
         <small class="text-muted ml-2">{{ultima}}</small>
     {{/ultima}}
+
+    <div class="small mt-1 {{#contextoaviso}}text-warning{{/contextoaviso}}{{^contextoaviso}}text-muted{{/contextoaviso}}">
+        {{contexto}}
+        {{#prepararurl}}
+            · <a href="{{prepararurl}}">{{#str}} preparecontext, assignfeedback_aiocr {{/str}}</a>
+        {{/prepararurl}}
+    </div>
 
     <div class="aiocr-spinner" data-region="aiocr-spinner" style="display:none;">
         {{#str}} processing, assignfeedback_aiocr {{/str}}

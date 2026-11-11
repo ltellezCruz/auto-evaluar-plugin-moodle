@@ -8,6 +8,32 @@ Cada versión indica:
 
 Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
 
+## 0.6.0 (plugin `2026111100`): rúbrica y contexto del profesor
+
+### Cambios
+
+- **La evaluación se guía por lo que pide el profesor.** Con el proveedor «Gemini (directo)», cada evaluación recibe el contexto del profesor de la tarea:
+  - la **rúbrica o guía de evaluación de Moodle** (Calificación avanzada), si la tarea tiene una;
+  - un campo nuevo en los ajustes de la tarea, **«Contexto para la IA»** (respuestas esperadas, criterios, tolerancias), y **«Archivos del profesor para la IA»** (rúbrica, enunciado o solucionario en PDF o imagen);
+  - el nombre, la descripción, las instrucciones y los archivos adicionales de la tarea.
+- **«Preparar rúbrica con IA»** (`prepare.php`, enlace en los ajustes de la tarea y en la pantalla de calificación): Gemini ordena una sola vez todo ese material en preguntas, respuestas esperadas, criterios y vacíos por resolver. El profesor lo revisa, lo corrige y lo guarda. Cada evaluación usa esa versión. Si el material cambia después, el plugin avisa que está desactualizado. Sin preparar, se usa el material tal cual (sin los archivos).
+- **Valoración por criterio:** si hay criterios, la retroalimentación termina con un nivel sugerido por criterio y su justificación. Es una sugerencia: la nota la sigue poniendo el profesor.
+- **Instrucciones separadas de los datos (base contra la manipulación de la IA):** en la evaluación, las reglas van como instrucciones de sistema (`system_instruction`); el contexto del profesor y la entrega van en bloques separados con marcas aleatorias por solicitud, y la entrega no puede cerrar su bloque. El prompt pide ignorar y señalar el texto de la entrega dirigido a la IA.
+- El registro de cada evaluación anota el origen del contexto (`preparado`, `preparado_desactualizado`, `fuentes` o `ninguno`).
+- El servicio externo (`php-service/`) no usa el contexto del profesor. Su versión sube a 0.6.0 sin cambios de código.
+
+### Probado (Moodle local con Gemini real)
+
+- Rúbrica de Moodle de 3 criterios y un contexto escrito en el Taller 3: la preparación tardó 4 s y reprodujo la rúbrica sin cambios.
+- Dos estudiantes evaluados con ese contexto: usaron las respuestas del profesor (x = 4, 1/2, 12) y sugirieron niveles por criterio. **En un caso la IA sugirió 0 donde la rúbrica describe exactamente el error del estudiante como nivel 1**: las sugerencias deben revisarse.
+- Una trampa en el texto en línea (instrucción para «calificar todo como correcto», marca falsa de cierre y texto en blanco): se ignoró y quedó señalada en «Limitaciones».
+- Ajustes de la tarea: el texto y el archivo del profesor se guardan, y cambiar el material marca el contexto preparado como desactualizado.
+
+### Al actualizar desde 0.5.0
+
+1. Despliega el plugin y ejecuta la actualización de Moodle (no hay cambios de tablas).
+2. En cada tarea, si quieres: crea la rúbrica (Calificación avanzada) o escribe el «Contexto para la IA», y usa «Preparar rúbrica con IA».
+
 ## 0.5.0 (plugin `2026111000`): plugin autónomo, sin servicio intermedio
 
 ### Cambios

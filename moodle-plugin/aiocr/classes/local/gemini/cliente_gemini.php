@@ -61,16 +61,35 @@ final class cliente_gemini {
      * @throws evaluacion_exception gemini
      */
     public function consultar(string $pregunta, ?string $mimetype = null, ?string $datos = null): array {
+        return $this->consultar_con(null, $pregunta, $datos === null ? [] : [['mimetype' => $mimetype, 'contenido' => $datos]]);
+    }
+
+    /**
+     * Envía instrucciones de sistema (separadas de los datos), un texto y
+     * varios archivos.
+     *
+     * Las instrucciones van en system_instruction: el modelo las distingue
+     * del contenido del mensaje, que es donde van los datos (contexto del
+     * profesor y entrega del estudiante).
+     *
+     * @param string|null $sistema instrucciones fijas del plugin
+     * @param string $texto contenido del mensaje
+     * @param array $adjuntos lista de ['mimetype' => string, 'contenido' => string]
+     * @return array [texto de la respuesta, consumo de tokens]
+     * @throws evaluacion_exception gemini
+     */
+    public function consultar_con(?string $sistema, string $texto, array $adjuntos = []): array {
         $partes = [];
-        if ($datos !== null) {
-            $partes[] = ['inline_data' => ['mime_type' => $mimetype, 'data' => base64_encode($datos)]];
+        foreach ($adjuntos as $adjunto) {
+            $partes[] = ['inline_data' => ['mime_type' => $adjunto['mimetype'], 'data' => base64_encode($adjunto['contenido'])]];
         }
-        $partes[] = ['text' => $pregunta];
-        $cuerpo = json_encode(
-            ['contents' => [['role' => 'user', 'parts' => $partes]]],
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-        );
-        unset($partes);
+        $partes[] = ['text' => $texto];
+        $peticion = ['contents' => [['role' => 'user', 'parts' => $partes]]];
+        if ($sistema !== null) {
+            $peticion['system_instruction'] = ['parts' => [['text' => $sistema]]];
+        }
+        $cuerpo = json_encode($peticion, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        unset($partes, $peticion);
 
         [$estado, $respuesta, $errorconexion] = ($this->transporte)(
             self::URL_BASE . $this->modelo . ':generateContent',

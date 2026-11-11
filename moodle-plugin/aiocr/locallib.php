@@ -40,10 +40,26 @@ class assign_feedback_aiocr extends assign_feedback_plugin {
         // se generó por última vez.
         $ultima = $grade ? $this->ultima_generada($grade) : null;
 
+        // Estado de la rúbrica / contexto del profesor que guiará la evaluación.
+        $plugincontexto = \assignfeedback_aiocr\local\contexto_profesor::class;
+        if (trim((string) $this->get_config('prepared')) === '') {
+            $estado = 'contextstatus:sources';
+            $aviso = false;
+        } else {
+            $aviso = $plugincontexto::desactualizado($this->assignment);
+            $estado = $aviso ? 'contextstatus:outdated' : 'contextstatus:prepared';
+        }
+        $cm = $this->assignment->get_course_module();
+        $puedepreparar = has_capability('moodle/course:manageactivities', $this->assignment->get_context());
+
         $datos = [
             'assignmentid' => $this->assignment->get_instance()->id,
             'userid'       => $userid,
             'ultima'       => $ultima ? get_string('generatedon', 'assignfeedback_aiocr', userdate($ultima->timecreated)) : null,
+            'contexto'     => get_string($estado, 'assignfeedback_aiocr'),
+            'contextoaviso' => $aviso,
+            'prepararurl'  => $puedepreparar
+                ? (new moodle_url('/mod/assign/feedback/aiocr/prepare.php', ['id' => $cm->id]))->out(false) : null,
         ];
 
         $html = $OUTPUT->render_from_template('assignfeedback_aiocr/feedback_button', $datos);
@@ -220,5 +236,58 @@ JS;
             '',
             get_string('enabled_help', 'assignfeedback_aiocr')
         );
+
+        // Rúbrica / contexto del profesor (ver classes/local/contexto_profesor.php).
+        $mform->addElement('textarea', 'assignfeedback_aiocr_context',
+            get_string('teachercontext', 'assignfeedback_aiocr'), ['rows' => 8, 'cols' => 70]);
+        $mform->setType('assignfeedback_aiocr_context', PARAM_TEXT);
+        $mform->addHelpButton('assignfeedback_aiocr_context', 'teachercontext', 'assignfeedback_aiocr');
+        $mform->hideIf('assignfeedback_aiocr_context', 'assignfeedback_aiocr_enabled', 'notchecked');
+
+        $mform->addElement('filemanager', 'assignfeedback_aiocr_files',
+            get_string('teacherfiles', 'assignfeedback_aiocr'), null, self::opciones_archivos());
+        $mform->addHelpButton('assignfeedback_aiocr_files', 'teacherfiles', 'assignfeedback_aiocr');
+        $mform->hideIf('assignfeedback_aiocr_files', 'assignfeedback_aiocr_enabled', 'notchecked');
+
+        // La preparación se hace después de guardar (necesita la tarea creada).
+        if ($this->assignment->has_instance()) {
+            $url = new moodle_url('/mod/assign/feedback/aiocr/prepare.php', ['id' => $this->assignment->get_course_module()->id]);
+            $mform->addElement('static', 'assignfeedback_aiocr_preparelink', '',
+                html_writer::link($url, get_string('preparecontext', 'assignfeedback_aiocr')));
+            $mform->hideIf('assignfeedback_aiocr_preparelink', 'assignfeedback_aiocr_enabled', 'notchecked');
+        }
+    }
+
+    /** Opciones del selector de archivos del profesor. */
+    private static function opciones_archivos(): array {
+        $maxmb = max(1, (int) get_config('assignfeedback_aiocr', 'max_file_mb') ?: 20);
+        return [
+            'subdirs' => 0,
+            'maxfiles' => 5,
+            'maxbytes' => $maxmb * 1024 * 1024,
+            'accepted_types' => \assignfeedback_aiocr\local\contexto_profesor::TIPOS_ARCHIVO,
+        ];
+    }
+
+    /** Valores actuales del texto y de los archivos del profesor en el formulario. */
+    public function data_preprocessing(&$defaultvalues) {
+        $contextid = $this->assignment->has_instance() ? $this->assignment->get_context()->id : null;
+        $borrador = file_get_submitted_draft_itemid('assignfeedback_aiocr_files');
+        file_prepare_draft_area($borrador, $contextid, 'assignfeedback_aiocr',
+            \assignfeedback_aiocr\local\contexto_profesor::AREA_ARCHIVOS, 0, self::opciones_archivos());
+        $defaultvalues['assignfeedback_aiocr_files'] = $borrador;
+        $defaultvalues['assignfeedback_aiocr_context'] = $this->assignment->has_instance()
+            ? (string) $this->get_config('context') : '';
+    }
+
+    /** Guarda el texto y los archivos del profesor de esta tarea. */
+    public function save_settings(stdClass $data) {
+        $this->set_config('context', trim((string) ($data->assignfeedback_aiocr_context ?? '')));
+        if (isset($data->assignfeedback_aiocr_files)) {
+            file_save_draft_area_files($data->assignfeedback_aiocr_files, $this->assignment->get_context()->id,
+                'assignfeedback_aiocr', \assignfeedback_aiocr\local\contexto_profesor::AREA_ARCHIVOS, 0,
+                self::opciones_archivos());
+        }
+        return true;
     }
 }
