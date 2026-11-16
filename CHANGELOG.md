@@ -77,9 +77,9 @@ Cómo actualizar paso a paso: [docs/actualizacion.md](docs/actualizacion.md).
 
 | Plugin | Servicio | Resultado |
 |---|---|---|
-| 0.5.0 (Gemini directo) | ninguno | ✅ Probado en el Moodle local con Gemini real (texto en línea, PDF de 1 y 2 páginas, entrega mixta, PDF escaneado real, límites de páginas, tamaño y tipo) con el servicio apagado |
-| 0.5.0 (Servicio externo) | 0.4.0 o 0.5.0 | ✅ Mismo contrato (el plugin envía además `fileid`, que el servicio ignora) |
-| 0.4.0 | 0.5.0 | ✅ Mismo contrato |
+| 0.5.0 (Gemini directo) | ninguno | Probado en el Moodle local con Gemini real (texto en línea, PDF de 1 y 2 páginas, entrega mixta, PDF escaneado real, límites de páginas, tamaño y tipo) con el servicio apagado |
+| 0.5.0 (Servicio externo) | 0.4.0 o 0.5.0 | Mismo contrato (el plugin envía además `fileid`, que el servicio ignora) |
+| 0.4.0 | 0.5.0 | Mismo contrato |
 
 ### Al actualizar desde 0.4.0
 
@@ -121,10 +121,10 @@ El código del plugin no cambia: solo sube su número de versión para ir a la p
 
 | Plugin | Servicio | Resultado |
 |---|---|---|
-| 0.4.0 | 0.4.0 (PHP) | ✅ Pruebas automáticas, y contra el Moodle local y Gemini reales en modo `directo`: texto en línea, PDF de 1 y 2 páginas, entrega mixta, límites de páginas y de tamaño) |
-| 0.3.0 | 0.4.0 (PHP) | ✅ Mismo contrato que el servicio 0.3.0 en Python |
-| 0.4.0 | 0.3.0 (Python) | ✅ Mismo contrato |
-| 0.2.0 | 0.4.0 (PHP) | ✅ Igual que con el servicio 0.3.0 |
+| 0.4.0 | 0.4.0 (PHP) | Pruebas automáticas, y contra el Moodle local y Gemini reales en modo `directo`: texto en línea, PDF de 1 y 2 páginas, entrega mixta, límites de páginas y de tamaño) |
+| 0.3.0 | 0.4.0 (PHP) | Mismo contrato que el servicio 0.3.0 en Python |
+| 0.4.0 | 0.3.0 (Python) | Mismo contrato |
+| 0.2.0 | 0.4.0 (PHP) | Igual que con el servicio 0.3.0 |
 
 ### Al actualizar desde 0.3.0 (Python)
 
@@ -155,9 +155,9 @@ El código del plugin no cambia: solo sube su número de versión para ir a la p
 
 | Plugin | Servicio | Resultado |
 |---|---|---|
-| 0.3.0 | 0.3.0 | ✅ |
-| 0.3.0 | 0.2.0 | ✅ Funciona, pero el servicio evalúa solo el primer archivo |
-| 0.2.0 | 0.3.0 | ✅ Funciona; el plugin 0.2.0 ya envía todos los archivos y el texto. Sin las correcciones de seguridad del plugin |
+| 0.3.0 | 0.3.0 | Fuunciona |
+| 0.3.0 | 0.2.0 | Funciona, pero el servicio evalúa solo el primer archivo |
+| 0.2.0 | 0.3.0 | Funciona; el plugin 0.2.0 ya envía todos los archivos y el texto. Sin las correcciones de seguridad del plugin |
 
 ### Al actualizar desde 0.2.0
 
@@ -185,9 +185,9 @@ El código del plugin no cambia: solo sube su número de versión para ir a la p
 
 | Plugin | Servicio | Resultado |
 |---|---|---|
-| 0.2.0 | 0.2.0 | ✅ |
-| 0.1.0 | 0.2.0 | ❌ El servicio responde 401: el plugin viejo no envía la clave |
-| 0.2.0 | 0.1.0 (`RESTmain.py`) | ⚠️ Funciona, pero sin ninguna de las protecciones nuevas |
+| 0.2.0 | 0.2.0 | Funciona |
+| 0.1.0 | 0.2.0 |  El servicio responde 401: el plugin viejo no envía la clave |
+| 0.2.0 | 0.1.0 (`RESTmain.py`) |  Funciona, pero sin ninguna de las protecciones nuevas |
 
 **Actualiza los dos.** El orden recomendado es primero el plugin y después el servicio, así no hay un momento en que el servicio pida una clave que el plugin aún no envía.
 
